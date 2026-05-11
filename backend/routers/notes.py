@@ -23,7 +23,9 @@ class NoteRequest(BaseModel):
     transcript_id: str
     patient_name: str
     patient_age: int
-
+class SaveNoteRequest(BaseModel):
+    note_id: str
+    doctor_edited: dict
 
 @router.post("/generate-note")
 def generate_note(
@@ -106,4 +108,28 @@ def generate_note(
         "note_id": str(note.id),
         "ai_draft": note_data,
         "flagged_phrases": flagged
+    }
+@router.post("/save-note")
+def save_note(req: SaveNoteRequest,
+              db: DBSession = Depends(get_db)):
+
+    note = db.query(Note).filter(
+        Note.id == req.note_id
+    ).first()
+
+    if not note:
+        raise HTTPException(404, "Note not found")
+
+    if note.is_finalized:
+        raise HTTPException(400, "Note already finalized")
+
+    # Preserve original AI draft
+    note.doctor_edited = json.dumps(req.doctor_edited)
+    note.is_finalized = True
+
+    db.commit()
+
+    return {
+        "status": "saved",
+        "note_id": req.note_id
     }
