@@ -41,3 +41,29 @@ class Note(Base):
     doctor_edited = Column(Text)
     is_finalized = Column(Boolean, default=False)
     created_at = Column(Date, server_default=func.now())
+class Embedding(Base):
+
+    __tablename__ = "embeddings"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    source_id = Column(
+        UUID(as_uuid=True)
+    )
+
+    source_type = Column(
+        String(20)
+    )
+
+    chunk_text = Column(
+        Text
+    )
+
+    created_at = Column(
+        Date,
+        server_default=func.now()
+    )
