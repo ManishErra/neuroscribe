@@ -1,3 +1,5 @@
+import re
+
 SYSTEM_PROMPT = """
 You are a medical documentation assistant for psychiatrists.
 
@@ -10,8 +12,12 @@ STRICT RULES:
 - Output ONLY valid JSON. No preamble. No markdown code blocks.
 """
 
-def build_user_prompt(transcript: str, patient_name: str,
-                       patient_age: int) -> str:
+def build_user_prompt(
+    transcript: str,
+    patient_name: str,
+    patient_age: int
+) -> str:
+
     return f"""
 Patient: {patient_name}, Age: {patient_age}
 
@@ -32,20 +38,40 @@ Generate this exact JSON structure:
 }}
 """
 
+
 # Safety filter — run on ALL LLM outputs before display
 BLOCKED_PHRASES = [
-    "diagnosis of", "patient has", "confirms diagnosis",
-    "schizophrenia", "bipolar disorder", "depressive disorder",
-    "PTSD", "suicidal", "risk level", "high risk", "low risk",
+    "diagnosis of",
+    "patient has",
+    "confirms diagnosis",
+    "schizophrenia",
+    "bipolar disorder",
+    "depressive disorder",
+    "PTSD",
+    "suicidal",
+    "risk level",
+    "high risk",
+    "low risk",
     "borderline personality"
 ]
 
+
 def safety_filter(text: str) -> tuple[str, list]:
+
     flagged = []
 
     for phrase in BLOCKED_PHRASES:
+
         if phrase.lower() in text.lower():
-            text = text.replace(phrase, "[FLAGGED FOR REVIEW]")
+
             flagged.append(phrase)
+
+            # Case-insensitive replacement
+            text = re.sub(
+                phrase,
+                "[FLAGGED FOR REVIEW]",
+                text,
+                flags=re.IGNORECASE
+            )
 
     return text, flagged

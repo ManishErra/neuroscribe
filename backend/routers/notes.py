@@ -2,9 +2,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from groq import Groq
 from sqlalchemy.orm import Session as DBSession
+
 from database import get_db
 from models import Note, Transcript
-from prompts import SYSTEM_PROMPT, build_user_prompt, safety_filter
+from prompts import (
+    SYSTEM_PROMPT,
+    build_user_prompt,
+    safety_filter
+)
 
 import os
 import uuid
@@ -16,16 +21,29 @@ load_dotenv()
 
 router = APIRouter()
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(
+    api_key=os.getenv("GROQ_API_KEY")
+)
 
+
+# =========================
+# Request Models
+# =========================
 
 class NoteRequest(BaseModel):
     transcript_id: str
     patient_name: str
     patient_age: int
+
+
 class SaveNoteRequest(BaseModel):
     note_id: str
     doctor_edited: dict
+
+
+# =========================
+# Generate AI Note
+# =========================
 
 @router.post("/generate-note")
 def generate_note(
@@ -33,7 +51,7 @@ def generate_note(
     db: DBSession = Depends(get_db)
 ):
 
-    # 1. Fetch transcript from DB
+    # 1. Fetch transcript
     transcript = db.query(Transcript).filter(
         Transcript.id == req.transcript_id
     ).first()
@@ -44,7 +62,7 @@ def generate_note(
             detail="Transcript not found"
         )
 
-    # 2. Call Groq LLM
+    # 2. Call LLM
     try:
 
         response = client.chat.completions.create(
@@ -76,13 +94,21 @@ def generate_note(
             detail=f"LLM call failed: {str(e)}"
         )
 
+    # 3. Extract output safely
     raw_output = response.choices[0].message.content
 
-    # 3. Safety filter
+    if not raw_output or not raw_output.strip():
+        raise HTTPException(
+            status_code=500,
+            detail="LLM returned empty response. Retry."
+        )
+
+    # 4. Safety filter
     filtered_output, flagged = safety_filter(raw_output)
 
-    # 4. Parse JSON
+    # 5. Parse JSON
     try:
+
         note_data = json.loads(filtered_output)
 
     except json.JSONDecodeError:
@@ -92,7 +118,7 @@ def generate_note(
             "parse_error": "LLM did not return valid JSON"
         }
 
-    # 5. Save AI draft
+    # 6. Save AI draft
     note = Note(
         id=uuid.uuid4(),
         session_id=transcript.session_id,
@@ -109,22 +135,39 @@ def generate_note(
         "ai_draft": note_data,
         "flagged_phrases": flagged
     }
+
+
+# =========================
+# Save Doctor Reviewed Note
+# =========================
+
 @router.post("/save-note")
-def save_note(req: SaveNoteRequest,
-              db: DBSession = Depends(get_db)):
+def save_note(
+    req: SaveNoteRequest,
+    db: DBSession = Depends(get_db)
+):
 
     note = db.query(Note).filter(
         Note.id == req.note_id
     ).first()
 
     if not note:
-        raise HTTPException(404, "Note not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Note not found"
+        )
 
     if note.is_finalized:
-        raise HTTPException(400, "Note already finalized")
+        raise HTTPException(
+            status_code=400,
+            detail="Note already finalized"
+        )
 
     # Preserve original AI draft
-    note.doctor_edited = json.dumps(req.doctor_edited)
+    note.doctor_edited = json.dumps(
+        req.doctor_edited
+    )
+
     note.is_finalized = True
 
     db.commit()
