@@ -1,9 +1,12 @@
 from fastapi import FastAPI
-from database import engine
-from routers.audio import router as audio_router
 from fastapi.middleware.cors import CORSMiddleware
 
+from routers.audio import router as audio_router
+from routers.notes import router as notes_router
 app = FastAPI()
+
+app.include_router(audio_router)
+app.include_router(notes_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
