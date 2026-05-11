@@ -46,3 +46,16 @@ Generate AI SOAP notes from transcripts
 - Added patient session timeline UI
 - Added note status indicators
 - Connected sessions to patients
+### Day 7
+
+- Built AI clinical note generation pipeline
+- Integrated Groq Whisper transcription
+- Added structured SOAP-style note generation
+- Added doctor review + finalize workflow
+- Added session detail viewer
+- Connected frontend + backend session history
+- Added safety filtering for psychiatric outputs
+
+### Current Status
+
+End-to-end AI documentation workflow operational
