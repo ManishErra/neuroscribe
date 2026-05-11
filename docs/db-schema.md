@@ -48,3 +48,79 @@ source_type VARCHAR(20)   -- 'session' or 'report'
 chunk_text  TEXT
 embedding   VECTOR(384)   -- pgvector column
 created_at  TIMESTAMP DEFAULT NOW()
+# Database Schema
+
+## patients
+Stores patient demographic information.
+
+| Column | Type |
+|---|---|
+| id | UUID |
+| name | String |
+| age | Integer |
+| gender | String |
+| created_at | Timestamp |
+
+---
+
+## sessions
+Stores therapy/psychiatric sessions.
+
+| Column | Type |
+|---|---|
+| id | UUID |
+| patient_id | UUID |
+| session_date | Date |
+| created_at | Timestamp |
+
+Relationship:
+- One patient → many sessions
+
+---
+
+## transcripts
+Stores raw AI-generated transcripts.
+
+| Column | Type |
+|---|---|
+| id | UUID |
+| session_id | UUID |
+| raw_text | Text |
+| created_at | Timestamp |
+
+Relationship:
+- One session → one transcript
+
+---
+
+## notes
+Stores AI draft notes and doctor-reviewed notes.
+
+| Column | Type |
+|---|---|
+| id | UUID |
+| session_id | UUID |
+| ai_draft | JSON/Text |
+| doctor_edited | JSON/Text |
+| is_finalized | Boolean |
+| created_at | Timestamp |
+
+Relationship:
+- One session → one note
+
+---
+
+# Important Safety Architecture
+
+NeuroScribe preserves:
+
+- Original AI-generated note
+- Doctor-reviewed final note
+
+Separately.
+
+This ensures:
+- auditability
+- traceability
+- medico-legal safety
+- AI transparency

@@ -23,3 +23,26 @@ Build audio upload endpoint (POST /upload-audio)
 
 ### Next session goal
 Generate AI SOAP notes from transcripts
+### Day 4
+- Built AI clinical note generation workflow
+- Added editable AI draft review UI
+- Added finalized note protection logic
+- Preserved AI draft separately from doctor-edited version
+- Added save-note endpoint
+- Completed full upload → transcript → note → finalize pipeline
+
+### Day 5
+- Built patient management backend APIs
+- Added patient CRUD endpoints
+- Built patient list page
+- Built add patient form
+- Added reusable navbar navigation
+- Connected frontend with patient APIs
+
+### Day 6
+- Built patient detail page using dynamic routing
+- Added session management backend
+- Added create session functionality
+- Added patient session timeline UI
+- Added note status indicators
+- Connected sessions to patients
