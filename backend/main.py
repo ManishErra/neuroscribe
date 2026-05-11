@@ -6,6 +6,9 @@ from routers.audio import router as audio_router
 from routers.notes import router as notes_router
 from routers.patients import router as patients_router
 from routers.sessions import router as sessions_router
+from routers.embed import (
+    router as embed_router
+)
 
 app = FastAPI()
 
@@ -23,6 +26,9 @@ app.include_router(audio_router)
 app.include_router(notes_router)
 app.include_router(patients_router)
 app.include_router(sessions_router)
+app.include_router(
+    embed_router
+)
 
 @app.get("/")
 def root():

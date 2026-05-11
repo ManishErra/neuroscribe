@@ -59,3 +59,40 @@ Generate AI SOAP notes from transcripts
 ### Current Status
 
 End-to-end AI documentation workflow operational
+## Day 8 — Embeddings + Vector Search Foundation
+
+### Completed
+
+- Installed sentence-transformers
+- Added local embedding generation
+- Implemented transcript/note chunking
+- Enabled pgvector extension in PostgreSQL
+- Created embeddings table
+- Built embedding utility pipeline
+- Added finalized-note embedding endpoint
+- Stored semantic vectors in pgvector
+- Added structured schema validation for clinical notes
+- Improved backend validation and serialization safety
+
+### Architecture Upgrade
+
+NeuroScribe now supports:
+
+- semantic memory
+- vector storage
+- AI retrieval foundations
+- chunk-based embedding pipelines
+- future RAG capabilities
+
+### Technical Notes
+
+- Embedding model:
+  all-MiniLM-L6-v2
+
+- Vector dimensions:
+  384
+
+- Embeddings generated locally
+  (no paid API required)
+
+- pgvector used for semantic storage
