@@ -240,3 +240,42 @@ This behavior is preferred over generating fabricated psychiatric information.
 * Build frontend RAG search UI
 * Improve retrieval quality
 * Prepare OCR ingestion pipeline
+# Day 10 — RAG Evaluation Log
+
+## Test 1
+Query: when did sleep problems start
+Score: 4/5
+Notes:
+Retrieved relevant session correctly.
+
+---
+
+## Test 2
+Query: what medications were mentioned
+Score: 5/5
+Notes:
+Correctly retrieved dolo and paracetamol with citations.
+
+---
+
+## Test 3
+Query: how has mood changed over sessions
+Score: 3/5
+Notes:
+Limited because only few sessions exist.
+
+---
+
+## Test 4
+Query: what did patient say about family
+Score: 1/5
+Notes:
+No family-related data found.
+
+---
+
+## Test 5
+Query: summarize last session
+Score: 4/5
+Notes:
+Summary generated correctly from latest records.
