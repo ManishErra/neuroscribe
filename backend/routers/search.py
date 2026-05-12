@@ -60,8 +60,8 @@ MIN_TOP_K = 1
 
 MAX_TOP_K = 10
 
-# Lower threshold for development dataset
-# Increase later for production safety
+# Lower threshold for small development dataset
+# Increase later after adding more sessions
 SIMILARITY_THRESHOLD = 0.25
 
 
@@ -126,6 +126,108 @@ def validate_top_k(top_k: int):
         )
 
 
+def rewrite_query(query: str) -> str:
+
+    """
+    Improve semantic retrieval for vague
+    doctor questions and timeline queries.
+    """
+
+    normalized = query.lower().strip()
+
+    # =====================================
+    # RECENT / LATEST SESSION QUERIES
+    # =====================================
+
+    if any([
+        "recent session" in normalized,
+        "latest session" in normalized,
+        "last session" in normalized,
+        "recent visit" in normalized,
+        "latest visit" in normalized,
+        "summarize recent" in normalized,
+        "summarize latest" in normalized,
+        "summarize last" in normalized,
+    ]):
+
+        return (
+            "latest clinical session summary "
+            "mood symptoms medications "
+            "treatment plan emotional state"
+        )
+
+    # =====================================
+    # MOOD / FEELINGS
+    # =====================================
+
+    if any([
+        "feeling" in normalized,
+        "emotional state" in normalized,
+        "emotion" in normalized,
+        "mood" in normalized,
+        "depressed" in normalized,
+        "anxious" in normalized,
+    ]):
+
+        return (
+            "mood emotional state "
+            "depression anxiety "
+            "patient feelings"
+        )
+
+    # =====================================
+    # SLEEP
+    # =====================================
+
+    if any([
+        "sleep" in normalized,
+        "insomnia" in normalized,
+        "sleeping" in normalized,
+    ]):
+
+        return (
+            "sleep insomnia "
+            "sleep problems "
+            "sleep quality"
+        )
+
+    # =====================================
+    # MEDICATIONS
+    # =====================================
+
+    if any([
+        "medication" in normalized,
+        "medicine" in normalized,
+        "drug" in normalized,
+        "tablet" in normalized,
+    ]):
+
+        return (
+            "medications prescribed "
+            "medicine treatment "
+            "drugs tablets"
+        )
+
+    # =====================================
+    # FAMILY / SOCIAL
+    # =====================================
+
+    if any([
+        "family" in normalized,
+        "social" in normalized,
+        "relationship" in normalized,
+        "friends" in normalized,
+    ]):
+
+        return (
+            "family social context "
+            "relationships support system"
+        )
+
+    # Default
+    return query.strip()
+
+
 def filter_good_chunks(
     chunks: list,
     threshold: float = SIMILARITY_THRESHOLD
@@ -164,7 +266,9 @@ def build_not_found_response(query: str):
 
         "citation_verified": False,
 
-        "query": query
+        "query": query,
+
+        "retrieved_chunks": 0
     }
 
 
@@ -192,6 +296,14 @@ def search(
     validate_top_k(req.top_k)
 
     # =====================================
+    # QUERY REWRITE
+    # =====================================
+
+    retrieval_query = rewrite_query(
+        cleaned_query
+    )
+
+    # =====================================
     # VECTOR SEARCH
     # =====================================
 
@@ -199,7 +311,7 @@ def search(
 
         results = search_similar(
 
-            query=cleaned_query,
+            query=retrieval_query,
 
             patient_id=req.patient_id,
 
@@ -227,6 +339,9 @@ def search(
 
             "query": cleaned_query,
 
+            "retrieval_query":
+                retrieval_query,
+
             "results": [],
 
             "message":
@@ -240,6 +355,9 @@ def search(
     return {
 
         "query": cleaned_query,
+
+        "retrieval_query":
+            retrieval_query,
 
         "results": results,
 
@@ -269,20 +387,28 @@ def ask(
     )
 
     # =====================================
-    # STEP 1: VECTOR RETRIEVAL
+    # QUERY REWRITE
+    # =====================================
+
+    retrieval_query = rewrite_query(
+        cleaned_query
+    )
+
+    # =====================================
+    # VECTOR RETRIEVAL
     # =====================================
 
     try:
 
         chunks = search_similar(
 
-            query=cleaned_query,
+            query=retrieval_query,
 
             patient_id=req.patient_id,
 
             db=db,
 
-            top_k=4
+            top_k=6
         )
 
     except Exception as e:
@@ -319,7 +445,7 @@ def ask(
         )
 
     # =====================================
-    # STEP 2: LLM GENERATION
+    # LLM GENERATION
     # =====================================
 
     try:
@@ -368,6 +494,7 @@ def ask(
     # =====================================
 
     answer = (
+
         response
         .choices[0]
         .message
@@ -381,6 +508,27 @@ def ask(
         )
 
     answer = answer.strip()
+
+    # =====================================
+    # FORCE SAFE FALLBACK
+    # =====================================
+
+    if any([
+
+        "not enough information"
+        in answer.lower(),
+
+        "cannot determine"
+        in answer.lower(),
+
+        "no information available"
+        in answer.lower(),
+
+    ]):
+
+        answer = (
+            "Not found in available records."
+        )
 
     # =====================================
     # VERIFY DATE CITATIONS
@@ -414,11 +562,23 @@ def ask(
                 c.get("session_date"),
 
             "similarity":
-                c.get("similarity"),
+                round(
+                    c.get("similarity", 0),
+                    3
+                ),
 
             "excerpt":
-                c.get("chunk", "")[:120]
-                + "..."
+
+                (
+                    c.get("chunk", "")[:180]
+                    + "..."
+                )
+
+                if len(
+                    c.get("chunk", "")
+                ) > 180
+
+                else c.get("chunk", "")
         }
 
         for c in good_chunks
@@ -439,6 +599,9 @@ def ask(
 
         "query":
             cleaned_query,
+
+        "retrieval_query":
+            retrieval_query,
 
         "retrieved_chunks":
             len(good_chunks)
