@@ -75,3 +75,50 @@ def safety_filter(text: str) -> tuple[str, list]:
             )
 
     return text, flagged
+# =========================================
+# RAG MEMORY SEARCH PROMPTS
+# =========================================
+
+RAG_SYSTEM = """
+You are a clinical memory assistant for psychiatrists.
+
+STRICT RULES:
+- Answer ONLY from the provided session excerpts below.
+- Cite the session date for EVERY fact you state.
+- If answer not found in excerpts:
+  say exactly "Not found in available records."
+- NEVER invent information.
+- NEVER diagnose.
+- NEVER assess risk.
+- Keep answer concise — 2 to 4 sentences maximum.
+"""
+
+
+def build_rag_prompt(
+    query: str,
+    chunks: list
+) -> str:
+
+    """
+    Convert retrieved chunks
+    into structured context
+    for the LLM.
+    """
+
+    formatted = "\n\n".join([
+
+        f"[Session: {c['session_date']}]\n{c['chunk']}"
+
+        for c in chunks
+    ])
+
+    return f"""
+Doctor's question:
+{query}
+
+Relevant session records:
+{formatted}
+
+Answer concisely.
+Cite session date for every fact.
+"""
