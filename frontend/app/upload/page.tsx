@@ -33,6 +33,58 @@ export default function UploadPage() {
   const [error, setError] = useState("")
 
   // =========================
+  // HELPERS
+  // =========================
+
+  function normalizeListInput(input: string): string[] {
+
+    if (!input || !input.trim()) {
+      return []
+    }
+
+    return input
+
+      // convert "and" into commas
+      .replace(/\band\b/gi, ",")
+
+      // collapse multiple spaces
+      .replace(/\s+/g, " ")
+
+      // split by comma
+      .split(",")
+
+      // trim spaces
+      .map(item => item.trim())
+
+      // remove empties
+      .filter(Boolean)
+  }
+
+  function prepareDoctorEditedNote(note: any) {
+
+    return {
+
+      ...note,
+
+      symptoms_mentioned: Array.isArray(
+        note.symptoms_mentioned
+      )
+        ? note.symptoms_mentioned
+        : normalizeListInput(
+            String(note.symptoms_mentioned || "")
+          ),
+
+      medications_mentioned: Array.isArray(
+        note.medications_mentioned
+      )
+        ? note.medications_mentioned
+        : normalizeListInput(
+            String(note.medications_mentioned || "")
+          )
+    }
+  }
+
+  // =========================
   // LOAD PATIENTS
   // =========================
 
@@ -47,7 +99,9 @@ export default function UploadPage() {
         )
 
         if (!res.ok) {
-          throw new Error("Failed to load patients")
+          throw new Error(
+            "Failed to load patients"
+          )
         }
 
         const data = await res.json()
@@ -56,7 +110,10 @@ export default function UploadPage() {
 
       } catch (err: any) {
 
-        setError(err.message)
+        setError(
+          err.message ||
+          "Failed to load patients"
+        )
       }
     }
 
@@ -79,7 +136,11 @@ export default function UploadPage() {
   async function createSession() {
 
     if (!selectedPatientId) {
-      setError("Please select a patient first")
+
+      setError(
+        "Please select a patient first"
+      )
+
       return null
     }
 
@@ -91,20 +152,28 @@ export default function UploadPage() {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type":
+              "application/json"
           },
 
           body: JSON.stringify({
-            patient_id: selectedPatientId,
-            session_date: new Date()
-              .toISOString()
-              .split("T")[0]
+
+            patient_id:
+              selectedPatientId,
+
+            session_date:
+              new Date()
+                .toISOString()
+                .split("T")[0]
           })
         }
       )
 
       if (!res.ok) {
-        throw new Error(await res.text())
+
+        throw new Error(
+          await res.text()
+        )
       }
 
       const data = await res.json()
@@ -115,7 +184,11 @@ export default function UploadPage() {
 
     } catch (err: any) {
 
-      setError(err.message)
+      setError(
+        err.message ||
+        "Failed to create session"
+      )
+
       return null
     }
   }
@@ -133,12 +206,18 @@ export default function UploadPage() {
     if (!file) return
 
     if (!selectedPatientId) {
-      setError("Please select a patient first")
+
+      setError(
+        "Please select a patient first"
+      )
+
       return
     }
 
     // Reset old state
+
     setLoading(true)
+
     setError("")
 
     setTranscript("")
@@ -152,17 +231,21 @@ export default function UploadPage() {
     try {
 
       // =========================
-      // Create new session
+      // CREATE SESSION
       // =========================
 
-      const newSessionId = await createSession()
+      const newSessionId =
+        await createSession()
 
       if (!newSessionId) {
-        throw new Error("Failed to create session")
+
+        throw new Error(
+          "Failed to create session"
+        )
       }
 
       // =========================
-      // Upload audio
+      // UPLOAD AUDIO
       // =========================
 
       const form = new FormData()
@@ -183,18 +266,26 @@ export default function UploadPage() {
       )
 
       if (!res.ok) {
-        throw new Error(await res.text())
+
+        throw new Error(
+          await res.text()
+        )
       }
 
       const data = await res.json()
 
       setTranscript(data.transcript)
 
-      setTranscriptId(data.transcript_id)
+      setTranscriptId(
+        data.transcript_id
+      )
 
     } catch (err: any) {
 
-      setError(err.message)
+      setError(
+        err.message ||
+        "Upload failed"
+      )
 
     } finally {
 
@@ -209,12 +300,20 @@ export default function UploadPage() {
   async function generateNote() {
 
     if (!selectedPatient) {
-      setError("Patient not selected")
+
+      setError(
+        "Patient not selected"
+      )
+
       return
     }
 
     if (!transcriptId) {
-      setError("Transcript missing")
+
+      setError(
+        "Transcript missing"
+      )
+
       return
     }
 
@@ -230,19 +329,29 @@ export default function UploadPage() {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type":
+              "application/json"
           },
 
           body: JSON.stringify({
-            transcript_id: transcriptId,
-            patient_name: selectedPatient.name,
-            patient_age: selectedPatient.age
+
+            transcript_id:
+              transcriptId,
+
+            patient_name:
+              selectedPatient.name,
+
+            patient_age:
+              selectedPatient.age
           })
         }
       )
 
       if (!res.ok) {
-        throw new Error(await res.text())
+
+        throw new Error(
+          await res.text()
+        )
       }
 
       const data = await res.json()
@@ -253,7 +362,10 @@ export default function UploadPage() {
 
     } catch (err: any) {
 
-      setError(err.message)
+      setError(
+        err.message ||
+        "Failed to generate note"
+      )
 
     } finally {
 
@@ -269,31 +381,46 @@ export default function UploadPage() {
 
     try {
 
+      setError("")
+
+      const cleanedNote =
+        prepareDoctorEditedNote(note)
+
       const res = await fetch(
         "http://localhost:8000/save-note",
         {
           method: "POST",
 
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type":
+              "application/json"
           },
 
           body: JSON.stringify({
+
             note_id: noteId,
-            doctor_edited: note
+
+            doctor_edited:
+              cleanedNote
           })
         }
       )
 
       if (!res.ok) {
-        throw new Error(await res.text())
+
+        throw new Error(
+          await res.text()
+        )
       }
 
       setSaved(true)
 
     } catch (err: any) {
 
-      setError(err.message)
+      setError(
+        err.message ||
+        "Failed to save note"
+      )
     }
   }
 
@@ -314,14 +441,21 @@ export default function UploadPage() {
       <div>
 
         <label className="text-sm font-medium block mb-2">
+
           Select Patient
+
         </label>
 
         <select
+
           value={selectedPatientId}
+
           onChange={(e) =>
-            setSelectedPatientId(e.target.value)
+            setSelectedPatientId(
+              e.target.value
+            )
           }
+
           className="w-full border rounded p-2 text-sm"
         >
 
@@ -335,7 +469,9 @@ export default function UploadPage() {
               key={patient.id}
               value={patient.id}
             >
-              {patient.name} ({patient.age})
+              {patient.name}
+              {" "}
+              ({patient.age})
             </option>
 
           ))}
@@ -356,14 +492,20 @@ export default function UploadPage() {
       {/* STATUS */}
 
       {loading && (
+
         <p className="text-blue-500 text-sm">
+
           Transcribing audio...
+
         </p>
       )}
 
       {error && (
-        <p className="text-red-500 text-sm">
+
+        <p className="text-red-500 text-sm whitespace-pre-wrap">
+
           {error}
+
         </p>
       )}
 
@@ -376,11 +518,15 @@ export default function UploadPage() {
           <div className="flex items-center gap-2 mb-2">
 
             <h2 className="font-medium text-sm">
+
               Transcript
+
             </h2>
 
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+
               AI Generated
+
             </span>
 
           </div>
@@ -392,13 +538,19 @@ export default function UploadPage() {
           />
 
           <button
+
             onClick={generateNote}
+
             disabled={generating}
+
             className="mt-3 px-4 py-2 bg-blue-600 text-white rounded text-sm disabled:opacity-50"
+
           >
+
             {generating
               ? "Generating Clinical Note..."
               : "Generate Clinical Note"}
+
           </button>
 
         </div>
@@ -413,16 +565,21 @@ export default function UploadPage() {
           <div className="flex items-center gap-2 mb-3">
 
             <h2 className="font-medium">
+
               Clinical Note
+
             </h2>
 
             <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+
               AI Draft — Review Required
+
             </span>
 
           </div>
 
-          {Object.entries(note).map(([key, value]) => (
+          {Object.entries(note).map(
+            ([key, value]) => (
 
             <div
               key={key}
@@ -436,6 +593,7 @@ export default function UploadPage() {
               </label>
 
               <textarea
+
                 value={
                   Array.isArray(value)
                     ? value.join(", ")
@@ -457,10 +615,15 @@ export default function UploadPage() {
           ))}
 
           <button
+
             onClick={saveNote}
+
             className="px-4 py-2 bg-green-600 text-white rounded text-sm"
+
           >
+
             ✓ Mark as Reviewed & Save
+
           </button>
 
         </div>
@@ -477,7 +640,7 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* DEBUG SESSION */}
+      {/* DEBUG */}
 
       {sessionId && (
 

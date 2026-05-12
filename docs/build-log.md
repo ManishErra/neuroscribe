@@ -96,3 +96,147 @@ NeuroScribe now supports:
   (no paid API required)
 
 - pgvector used for semantic storage
+# Day 9 — Semantic Search + pgvector Retrieval
+
+## Goals Completed
+
+* Added SentenceTransformer embeddings
+* Added text chunking pipeline
+* Enabled pgvector in Supabase
+* Built embeddings table
+* Implemented semantic vector search
+* Added `/search` endpoint
+* Connected embeddings with notes + sessions
+* Tested semantic retrieval using patient queries
+
+---
+
+## Retrieval Test Results
+
+| Query                  | Similarity Score | Result Quality | Notes                          |
+| ---------------------- | ---------------- | -------------- | ------------------------------ |
+| sleep problems         | 0.115            | Poor           | Dataset too small              |
+| patient goals          | 0.456            | Good           | Retrieved English fluency goal |
+| medications mentioned  | 0.393            | Moderate       | Retrieved dolo/paracetamol     |
+| emotional state        | 0.280            | Weak           | Sparse emotional context       |
+| summarize last session | 0.220            | Weak           | Need multiple sessions         |
+
+---
+
+## Problems Faced
+
+### 1. pgvector insertion errors
+
+Issue:
+
+* invalid vector syntax errors
+
+Fix:
+
+* converted embeddings using `str(vec)`
+
+---
+
+### 2. Similarity scores too low
+
+Issue:
+
+* retrieval returning weak matches
+
+Fix:
+
+* lowered similarity threshold from `0.45` to `0.25` temporarily for development dataset
+
+---
+
+### 3. No retrieval results
+
+Issue:
+
+* patient IDs mismatched between Swagger and Supabase
+
+Fix:
+
+* verified IDs directly from patients table in Supabase
+
+---
+
+## Key Learnings
+
+* Learned how vector embeddings work
+* Understood cosine similarity search
+* Learned pgvector operators (`<=>`)
+* Built first semantic retrieval pipeline
+* Understood importance of chunk quality and dataset richness
+
+---
+
+# Day 10 — Full RAG Pipeline
+
+## Goals Completed
+
+* Added RAG system prompt
+* Built `build_rag_prompt()`
+* Added `/search/ask` endpoint
+* Connected vector retrieval to Groq LLM
+* Added citation verification
+* Added hallucination prevention logic
+* Added source excerpt return
+* Added similarity filtering
+* Tested grounded answer generation
+
+---
+
+## RAG Evaluation
+
+| Query                              | Accuracy | Notes                                      |
+| ---------------------------------- | -------- | ------------------------------------------ |
+| what medications were mentioned    | 4/5      | Correctly retrieved dolo + paracetamol     |
+| what goals did the patient discuss | 4/5      | Retrieved English fluency goals            |
+| summarize last session             | 2/5      | Dataset too small for strong summarization |
+| emotional state discussed          | 2/5      | Weak emotional context in records          |
+| what did patient say about family  | 5/5      | Correctly returned "Not found"             |
+
+---
+
+## Important Safety Observation
+
+The RAG system correctly refused to hallucinate information when data was unavailable.
+
+Example:
+
+* family history queries returned:
+  `Not found in available records.`
+
+This behavior is preferred over generating fabricated psychiatric information.
+
+---
+
+## Technical Improvements
+
+* Added chunk filtering
+* Added reusable validation helpers
+* Added safer fallback responses
+* Added citation verification
+* Improved retrieval debugging
+* Added retrieval metadata (`retrieved_chunks`)
+
+---
+
+## Key Learnings
+
+* Learned full Retrieval-Augmented Generation (RAG)
+* Understood grounding vs hallucination
+* Learned retrieval threshold tuning
+* Learned importance of dataset quality
+* Built end-to-end AI memory retrieval system
+
+---
+
+## Next Steps
+
+* Add multiple sessions per patient
+* Improve semantic richness of notes
+* Build frontend RAG search UI
+* Improve retrieval quality
+* Prepare OCR ingestion pipeline

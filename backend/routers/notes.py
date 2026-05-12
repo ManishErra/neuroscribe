@@ -2,13 +2,20 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, ValidationError
 from groq import Groq
 from sqlalchemy.orm import Session as DBSession
+from sqlalchemy import text as sql_text
 
 from database import get_db
 from models import Note, Transcript
+
 from prompts import (
     SYSTEM_PROMPT,
     build_user_prompt,
     safety_filter
+)
+
+from embeddings import (
+    generate_embedding,
+    chunk_text
 )
 
 from typing import List
@@ -28,9 +35,9 @@ client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
 
-# =========================
+# =========================================
 # REQUEST MODELS
-# =========================
+# =========================================
 
 class NoteRequest(BaseModel):
 
@@ -69,25 +76,38 @@ class SaveNoteRequest(BaseModel):
     doctor_edited: ClinicalNoteSchema
 
 
-# =========================
+# =========================================
 # CLEAN LLM JSON
-# =========================
+# =========================================
 
 def clean_llm_json(text: str) -> str:
 
     text = text.strip()
 
-    # Remove markdown code fences
-    text = re.sub(r"^```json", "", text)
-    text = re.sub(r"^```", "", text)
-    text = re.sub(r"```$", "", text)
+    text = re.sub(
+        r"^```json",
+        "",
+        text
+    )
+
+    text = re.sub(
+        r"^```",
+        "",
+        text
+    )
+
+    text = re.sub(
+        r"```$",
+        "",
+        text
+    )
 
     return text.strip()
 
 
-# =========================
-# GENERATE AI NOTE
-# =========================
+# =========================================
+# GENERATE NOTE
+# =========================================
 
 @router.post("/generate-note")
 def generate_note(
@@ -95,11 +115,9 @@ def generate_note(
     db: DBSession = Depends(get_db)
 ):
 
-    # =========================
-    # FETCH TRANSCRIPT
-    # =========================
-
-    transcript = db.query(Transcript).filter(
+    transcript = db.query(
+        Transcript
+    ).filter(
         Transcript.id == req.transcript_id
     ).first()
 
@@ -110,10 +128,6 @@ def generate_note(
             detail="Transcript not found"
         )
 
-    # =========================
-    # VALIDATE TRANSCRIPT
-    # =========================
-
     if not transcript.raw_text:
 
         raise HTTPException(
@@ -121,9 +135,9 @@ def generate_note(
             detail="Transcript is empty"
         )
 
-    # =========================
+    # =========================================
     # CALL LLM
-    # =========================
+    # =========================================
 
     try:
 
@@ -157,9 +171,9 @@ def generate_note(
             detail=f"LLM call failed: {str(e)}"
         )
 
-    # =========================
+    # =========================================
     # EXTRACT OUTPUT
-    # =========================
+    # =========================================
 
     raw_output = response.choices[0].message.content
 
@@ -170,25 +184,27 @@ def generate_note(
             detail="LLM returned empty response"
         )
 
-    # =========================
+    # =========================================
     # SAFETY FILTER
-    # =========================
+    # =========================================
 
-    filtered_output, flagged = safety_filter(raw_output)
+    filtered_output, flagged = safety_filter(
+        raw_output
+    )
 
-    # =========================
-    # CLEAN JSON
-    # =========================
+    filtered_output = clean_llm_json(
+        filtered_output
+    )
 
-    filtered_output = clean_llm_json(filtered_output)
-
-    # =========================
+    # =========================================
     # PARSE JSON
-    # =========================
+    # =========================================
 
     try:
 
-        parsed_json = json.loads(filtered_output)
+        parsed_json = json.loads(
+            filtered_output
+        )
 
     except json.JSONDecodeError:
 
@@ -197,9 +213,9 @@ def generate_note(
             detail="LLM returned invalid JSON"
         )
 
-    # =========================
-    # VALIDATE AI STRUCTURE
-    # =========================
+    # =========================================
+    # VALIDATE STRUCTURE
+    # =========================================
 
     try:
 
@@ -214,9 +230,9 @@ def generate_note(
             detail=f"AI note schema invalid: {str(e)}"
         )
 
-    # =========================
+    # =========================================
     # SAVE AI DRAFT
-    # =========================
+    # =========================================
 
     note = Note(
 
@@ -238,6 +254,7 @@ def generate_note(
     db.refresh(note)
 
     return {
+
         "note_id": str(note.id),
 
         "ai_draft": validated_note.model_dump(),
@@ -246,19 +263,15 @@ def generate_note(
     }
 
 
-# =========================
-# SAVE DOCTOR REVIEWED NOTE
-# =========================
+# =========================================
+# SAVE FINAL NOTE + AUTO EMBED
+# =========================================
 
 @router.post("/save-note")
 def save_note(
     req: SaveNoteRequest,
     db: DBSession = Depends(get_db)
 ):
-
-    # =========================
-    # FETCH NOTE
-    # =========================
 
     note = db.query(Note).filter(
         Note.id == req.note_id
@@ -271,10 +284,6 @@ def save_note(
             detail="Note not found"
         )
 
-    # =========================
-    # PREVENT DOUBLE FINALIZE
-    # =========================
-
     if note.is_finalized:
 
         raise HTTPException(
@@ -282,19 +291,11 @@ def save_note(
             detail="Note already finalized"
         )
 
-    # =========================
-    # EMPTY VALIDATION
-    # =========================
-
-    note_values = (
-        req.doctor_edited
-        .model_dump()
-        .values()
-    )
+    doctor_note = req.doctor_edited.model_dump()
 
     if not any(
         str(v).strip()
-        for v in note_values
+        for v in doctor_note.values()
     ):
 
         raise HTTPException(
@@ -302,21 +303,98 @@ def save_note(
             detail="Cannot save empty note"
         )
 
-    # =========================
-    # SAVE FINAL NOTE
-    # =========================
+    # =========================================
+    # SAVE FINALIZED NOTE
+    # =========================================
 
     note.doctor_edited = json.dumps(
-        req.doctor_edited.model_dump()
+        doctor_note
     )
 
     note.is_finalized = True
 
     db.commit()
 
+    # =========================================
+    # AUTO EMBEDDING
+    # =========================================
+
+    try:
+
+        plain_text = " ".join([
+
+            f"{k}: {v}"
+
+            for k, v in doctor_note.items()
+
+            if v and str(v).strip()
+
+        ])
+
+        chunks = chunk_text(
+            plain_text
+        )
+
+        for chunk in chunks:
+
+            vec = generate_embedding(
+                chunk
+            )
+
+            db.execute(
+
+                sql_text("""
+
+                    INSERT INTO embeddings
+                    (
+                        id,
+                        source_id,
+                        source_type,
+                        chunk_text,
+                        embedding
+                    )
+
+                    VALUES
+                    (
+                        :id,
+                        :source_id,
+                        :source_type,
+                        :chunk_text,
+                        :embedding
+                    )
+
+                """),
+
+                {
+
+                    "id": str(uuid.uuid4()),
+
+                    "source_id": str(note.id),
+
+                    "source_type": "note",
+
+                    "chunk_text": chunk,
+
+                    "embedding": str(vec)
+
+                }
+
+            )
+
+        db.commit()
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            f"Embedding failed (non-critical): {e}"
+        )
+
     return {
 
         "status": "saved",
 
         "note_id": req.note_id
+
     }
