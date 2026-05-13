@@ -35,6 +35,10 @@ from routers.search import (
     router as search_router
 )
 
+from routers.reports import (
+    router as reports_router
+)
+
 
 # =========================================
 # FASTAPI APP
@@ -91,6 +95,8 @@ app.include_router(sessions_router)
 app.include_router(embed_router)
 
 app.include_router(search_router)
+
+app.include_router(reports_router)
 
 
 # =========================================
