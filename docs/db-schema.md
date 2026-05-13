@@ -34,21 +34,26 @@ created_at      TIMESTAMP DEFAULT NOW()
 
 ### reports
 
-id          UUID PRIMARY KEY DEFAULT gen_random_uuid()
-patient_id  UUID REFERENCES patients(id)
-file_path   TEXT
-ocr_text    TEXT
-created_at  TIMESTAMP DEFAULT NOW()
+id                  UUID PRIMARY KEY DEFAULT gen_random_uuid()
+patient_id          UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE
+file_path           TEXT NOT NULL          -- server-side storage path or object key
+original_filename   TEXT                   -- client-provided name for display
+mime_type           VARCHAR(128)
+title               VARCHAR(200)           -- optional human label in UI
+report_date         DATE                   -- optional document date (citations / timeline)
+ocr_text            TEXT                   -- full OCR output; NULL until ready
+ocr_status          VARCHAR(32) NOT NULL DEFAULT 'pending'  -- pending | ready | failed
+ocr_error           TEXT                   -- short failure message when status = failed
+created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
 ### embeddings
 
 id          UUID PRIMARY KEY DEFAULT gen_random_uuid()
 source_id   UUID
-source_type VARCHAR(20)   -- 'session' or 'report'
+source_type VARCHAR(20)   -- application: 'note' (finalized notes); Day 12 adds 'report'
 chunk_text  TEXT
 embedding   VECTOR(384)   -- pgvector column
 created_at  TIMESTAMP DEFAULT NOW()
-# Database Schema
 
 ## patients
 Stores patient demographic information.
@@ -107,6 +112,28 @@ Stores AI draft notes and doctor-reviewed notes.
 
 Relationship:
 - One session → one note
+
+---
+
+## reports
+Stores uploaded clinical documents (labs, imaging summaries, prior records) and OCR output.
+
+| Column | Type |
+|---|---|
+| id | UUID |
+| patient_id | UUID |
+| file_path | Text |
+| original_filename | Text |
+| mime_type | String |
+| title | String |
+| report_date | Date |
+| ocr_text | Text |
+| ocr_status | String |
+| ocr_error | Text |
+| created_at | Timestamptz |
+
+Relationship:
+- One patient → many reports
 
 ---
 
