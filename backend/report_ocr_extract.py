@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from typing import List, Optional
 
+from report_text_cleaner import clean_ocr_text
+
 
 def extract_report_text(absolute_path: str, mime_type: str) -> str:
     """
@@ -19,9 +21,9 @@ def extract_report_text(absolute_path: str, mime_type: str) -> str:
     normalized = (mime_type or "").split(";")[0].strip().lower()
 
     if normalized == "application/pdf":
-        return _extract_pdf(absolute_path)
+        return clean_ocr_text(_extract_pdf(absolute_path))
     if normalized in ("image/png", "image/jpeg", "image/jpg"):
-        return _extract_image(absolute_path)
+        return clean_ocr_text(_extract_image(absolute_path))
 
     raise ValueError(f"Unsupported MIME for OCR: {mime_type!r}")
 

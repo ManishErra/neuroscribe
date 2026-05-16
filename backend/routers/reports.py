@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session as DBSession
 from database import get_db
 from models import Patient, Report
 from report_ocr_extract import extract_report_text
+from report_vector_store import add_report_embeddings
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -469,6 +470,16 @@ def run_report_ocr(
     report.ocr_error = None
     db.commit()
     db.refresh(report)
+
+    try:
+        add_report_embeddings(
+            report_id=str(report.id),
+            report_text=extracted,
+        )
+    except Exception as exc:
+        print(
+            f"Vector ingestion failed for report {report.id} (OCR succeeded): {exc}"
+        )
 
     preview = _text_preview(extracted)
 
