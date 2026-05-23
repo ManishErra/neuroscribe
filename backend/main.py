@@ -32,7 +32,7 @@ from routers.embed import (
 )
 
 from routers.search import (
-    router as search_router
+    router as ask_router
 )
 
 from routers.reports import (
@@ -94,7 +94,7 @@ app.include_router(sessions_router)
 
 app.include_router(embed_router)
 
-app.include_router(search_router)
+app.include_router(ask_router)
 
 app.include_router(reports_router)
 

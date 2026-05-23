@@ -7,10 +7,22 @@ Designed for report OCR output and downstream embedding pipelines.
 from __future__ import annotations
 
 import re
-from typing import List
+from typing import List, TypedDict
 
-# Sentence ends followed by whitespace, or paragraph breaks.
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n{2,}")
+
+class ChunkSpan(TypedDict):
+    """One text chunk with its start offset in the source document."""
+
+    text: str
+    char_start: int
+
+# Sentence ends before a likely new sentence; paragraph breaks; avoid decimals/abbrevs.
+_SENTENCE_SPLIT = re.compile(
+    r"(?<!\d)"
+    r"(?<!Dr)(?<!Mr)(?<!Mrs)(?<!Ms)(?<!Sr)(?<!Jr)(?<!St)(?<!No)(?<!vs)"
+    r"(?<=[.!?])\s+(?=[A-Z0-9])"
+    r"|\n{2,}"
+)
 
 
 def _split_sentences(text: str) -> List[str]:
@@ -105,29 +117,23 @@ def _overlap_prefix(chunk: str, overlap: int) -> str:
     return chunk[start:].lstrip()
 
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> List[str]:
-    """
-    Split text into overlapping chunks sized by character count.
+def _unit_char_offsets(source: str, units: List[str]) -> List[int]:
+    """Map each chunking unit to its first occurrence offset in ``source``."""
+    offsets: List[int] = []
+    search_from = 0
+    for unit in units:
+        idx = source.find(unit, search_from)
+        if idx == -1:
+            idx = search_from
+        offsets.append(idx)
+        search_from = max(search_from, idx + max(len(unit), 1))
+    return offsets
 
-    Chunks are built from sentences when possible; long sentences are split on
-    word boundaries. Consecutive chunks share up to ``overlap`` characters from
-    the end of the previous chunk, aligned to a sentence or word boundary when
-    feasible.
 
-    Args:
-        text: Source text to chunk.
-        chunk_size: Target maximum characters per chunk.
-        overlap: Characters repeated from the end of one chunk at the start of
-            the next.
-
-    Returns:
-        A list of non-empty chunk strings. Empty or whitespace-only input yields
-        an empty list.
-
-    Raises:
-        ValueError: If chunk_size is not positive, overlap is negative, or
-            overlap is greater than or equal to chunk_size.
-    """
+def _chunk_impl(
+    text: str, chunk_size: int = 500, overlap: int = 125
+) -> List[ChunkSpan]:
+    """Core chunking: sentence-aware spans with overlap and document offsets."""
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")
     if overlap < 0:
@@ -138,11 +144,13 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> List[str
     if not text or not text.strip():
         return []
 
-    units = _units_for_chunking(text.strip(), chunk_size)
+    stripped = text.strip()
+    units = _units_for_chunking(stripped, chunk_size)
     if not units:
         return []
 
-    chunks: List[str] = []
+    unit_offsets = _unit_char_offsets(stripped, units)
+    spans: List[ChunkSpan] = []
     index = 0
     prefix = ""
 
@@ -181,15 +189,45 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 100) -> List[str
         if not chunk:
             break
 
-        chunks.append(chunk)
+        position_index = start_index
+        if prefix and index > start_index:
+            position_index = start_index + 1
+        char_start = (
+            unit_offsets[position_index]
+            if position_index < len(unit_offsets)
+            else 0
+        )
+
+        spans.append({"text": chunk, "char_start": char_start})
 
         if index >= len(units):
             break
 
         prefix = _overlap_prefix(chunk, overlap)
-
-        # Overlap alone could not fit the next unit; continue without it.
         if index == start_index:
             prefix = ""
 
-    return chunks
+    return spans
+
+
+def chunk_text_with_spans(
+    text: str, chunk_size: int = 500, overlap: int = 125
+) -> List[ChunkSpan]:
+    """
+    Split text into overlapping chunks with character offsets.
+
+    Default sizing targets 400–600 character chunks with 100–150 character overlap.
+    """
+    return _chunk_impl(text, chunk_size=chunk_size, overlap=overlap)
+
+
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 125) -> List[str]:
+    """
+    Split text into overlapping chunks sized by character count.
+
+    Chunks are built from sentences when possible; long sentences are split on
+    word boundaries. Consecutive chunks share up to ``overlap`` characters from
+    the end of the previous chunk, aligned to a sentence or word boundary when
+    feasible.
+    """
+    return [span["text"] for span in _chunk_impl(text, chunk_size, overlap)]

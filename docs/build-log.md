@@ -279,3 +279,209 @@ Query: summarize last session
 Score: 4/5
 Notes:
 Summary generated correctly from latest records.
+# NeuroScribe Development Progress Log
+
+---
+
+# Day 11 — Semantic Embedding Pipeline
+
+## Objective
+Build the semantic embedding foundation for medical report retrieval.
+
+## Implemented
+- SentenceTransformer embedding generation
+- all-MiniLM-L6-v2 embedding model
+- Embedding preprocessing pipeline
+- Chunk-level embedding creation
+- Metadata-linked embeddings
+
+## Files Added
+- embeddings.py
+- report_embeddings.py
+
+## Key Learnings
+- Semantic embeddings
+- Vector representation
+- Chunk-level retrieval design
+- Embedding dimensionality handling
+
+---
+
+# Day 12 — FAISS Vector Database Integration
+
+## Objective
+Implement semantic vector search using FAISS.
+
+## Implemented
+- FAISS IndexFlatIP vector index
+- Cosine similarity retrieval
+- Vector normalization
+- Metadata persistence
+- On-disk FAISS storage
+- Retrieval ranking pipeline
+
+## Features
+- Top-K semantic retrieval
+- Persistent vector storage
+- Retrieval debugging logs
+- Similarity score ranking
+
+## Files Added
+- report_vector_store.py
+
+## Key Learnings
+- Approximate nearest neighbor retrieval
+- Cosine similarity search
+- FAISS indexing
+- Retrieval architecture
+
+---
+
+# Day 13 — Hybrid Clinical RAG Pipeline
+
+## Objective
+Connect semantic retrieval with LLM-based medical QA.
+
+## Implemented
+- Retrieval-Augmented Generation (RAG)
+- Context-aware prompting
+- Medical-safe prompting
+- Semantic search endpoint
+- LLM orchestration pipeline
+
+## Features
+- Ask endpoint
+- Semantic chunk retrieval
+- Context injection into prompts
+- Controlled clinical responses
+
+## Files Updated
+- llm_service.py
+- routers/search.py
+
+## Key Learnings
+- RAG system architecture
+- Prompt engineering
+- Context grounding
+- AI orchestration patterns
+
+---
+
+# Day 14 — Retrieval Optimization & Query Expansion
+
+## Objective
+Improve retrieval quality and semantic matching.
+
+## Implemented
+- Medical synonym expansion
+- Query preprocessing improvements
+- Oversampled retrieval
+- Similarity threshold tuning
+- Retrieval debugging tools
+- Keyword boosting experiments
+
+## Features
+- Expanded medical query support
+- Improved retrieval recall
+- Better semantic matching
+- Threshold-controlled filtering
+
+## Examples
+- hemoglobin → hb, hgb
+- glucose → sugar, blood glucose
+
+## Key Learnings
+- Retrieval tuning
+- Hybrid search strategies
+- Semantic recall vs precision tradeoffs
+- Clinical query normalization
+
+---
+
+# Day 15 — Structured Clinical Extraction + Hallucination Prevention
+
+## Objective
+Reduce hallucinations using deterministic medical extraction before LLM generation.
+
+## Implemented
+- Structured clinical extraction layer
+- Regex-based lab value extraction
+- Deterministic answer routing
+- Hybrid extraction + LLM pipeline
+- Clinical safety-first architecture
+
+## Features
+- Hemoglobin extraction
+- Glucose extraction
+- Structured extraction fallback
+- Hallucination prevention
+- Safe answer routing
+
+## Files Added
+- clinical_extractors.py
+
+## Files Updated
+- llm_service.py
+
+## System Improvements
+- Reduced hallucinated responses
+- More deterministic medical answers
+- Better clinical reliability
+- Safer AI behavior
+
+## Key Learnings
+- Clinical AI safety
+- Deterministic extraction systems
+- Hybrid symbolic + neural AI
+- Hallucination mitigation techniques
+
+---
+
+# Overall System Status After Day 15
+
+## Completed Core Systems
+
+### OCR Pipeline
+- PDF ingestion
+- OCR extraction
+- Text cleaning
+
+### Semantic Retrieval
+- Embedding generation
+- FAISS vector storage
+- Similarity retrieval
+
+### Hybrid Clinical AI
+- RAG pipeline
+- Structured extraction
+- Safe LLM orchestration
+
+### API Layer
+- FastAPI backend
+- Swagger UI testing
+- Search endpoints
+
+---
+
+# Current Architecture
+
+```text
+Medical Report
+      ↓
+OCR Extraction
+      ↓
+Text Cleaning
+      ↓
+Chunking
+      ↓
+Embedding Generation
+      ↓
+FAISS Vector Store
+      ↓
+Semantic Retrieval
+      ↓
+Structured Extraction
+      ↓
+LLM Reasoning
+      ↓
+Clinical Answer

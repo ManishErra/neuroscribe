@@ -1,38 +1,44 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, field_validator
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 from report_vector_store import search_similar_chunks
 
-router = APIRouter(prefix="/search", tags=["Search"])
+router = APIRouter(prefix="/ask", tags=["Ask"])
 
 
-class SearchQueryRequest(BaseModel):
-    query: str
+class AskRequest(BaseModel):
+    question: str
     top_k: int = 5
 
-    @field_validator("query")
-    @classmethod
-    def validate_query(cls, value: str) -> str:
-        if not value or not value.strip():
-            raise ValueError("query cannot be empty")
-        return value.strip()
 
-    @field_validator("top_k")
-    @classmethod
-    def validate_top_k(cls, value: int) -> int:
-        if value < 1:
-            raise ValueError("top_k must be at least 1")
-        return value
+@router.post("/")
+def ask_question(request: AskRequest):
+    results = search_similar_chunks(
+        query=request.question,
+        top_k=request.top_k,
+    )
 
+    if not results:
+        return {
+            "question": request.question,
+            "answer": "No relevant medical context found.",
+            "chunks_used": [],
+        }
 
-@router.post("/query")
-def query_search(request: SearchQueryRequest):
-    try:
-        return search_similar_chunks(
-            query=request.query,
-            top_k=request.top_k,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    context = "\n\n".join(
+        chunk["chunk_text"]
+        for chunk in results
+    )
+
+    from llm_service import generate_answer
+
+    answer = generate_answer(
+        context=context,
+        question=request.question,
+    )
+
+    return {
+        "question": request.question,
+        "answer": answer,
+        "chunks_used": results,
+    }
