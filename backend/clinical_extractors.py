@@ -71,35 +71,41 @@ def extract_hemoglobin(
     return None
 
 
-def extract_glucose(
-    text: str,
-) -> Optional[str]:
+import re
+
+
+def extract_glucose(text: str) -> str | None:
     """
-    Extract glucose value.
+    Extract glucose / blood sugar values.
     """
 
-    for pattern in GLUCOSE_PATTERNS:
+    patterns = [
 
-        match = pattern.search(text)
+        # Standard glucose
+        r"glucose[:\s]+([\d.]+\s*mg/dl)",
 
-        if not match:
-            continue
+        # Blood sugar
+        r"blood sugar[:\s]+([\d.]+\s*mg/dl)",
 
-        value = (
-            match.group(2)
-            if len(match.groups()) >= 2
-            else match.group(1)
+        # Mean blood glucose
+        r"mean blood glucose.*?([\d.]+\s*mg/dl)",
+
+        # HbA1c calculated glucose
+        r"calculated.*?glucose.*?([\d.]+\s*mg/dl)",
+
+    ]
+
+    lower_text = text.lower()
+
+    for pattern in patterns:
+
+        match = re.search(
+            pattern,
+            lower_text,
+            re.IGNORECASE | re.DOTALL,
         )
 
-        try:
-
-            numeric = float(value)
-
-            # realistic glucose range
-            if 20 <= numeric <= 600:
-                return value
-
-        except ValueError:
-            continue
+        if match:
+            return match.group(1).upper()
 
     return None

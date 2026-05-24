@@ -1,9 +1,15 @@
+import json
+
 from ollama import chat
+
+from clinical_entities import extract_clinical_entities
 
 from clinical_extractors import (
     extract_glucose,
     extract_hemoglobin,
 )
+
+from clinical_flags import classify_lab_result
 
 
 def _try_structured_extraction(
@@ -11,24 +17,101 @@ def _try_structured_extraction(
     question: str,
 ) -> str | None:
     """
-    Attempt deterministic medical extraction before LLM generation.
+    Deterministic extractor pipeline
+    using regex-based extractors.
     """
 
     q = question.lower()
 
+    # Hemoglobin
     if "hemoglobin" in q or "hb" in q:
 
         value = extract_hemoglobin(context)
 
         if value:
-            return f"Hemoglobin level: {value}"
 
+            result = classify_lab_result(
+                "hemoglobin",
+                value,
+            )
+
+            return json.dumps(
+                result,
+                indent=2,
+            )
+
+    # Glucose
     if "glucose" in q or "sugar" in q:
 
         value = extract_glucose(context)
 
         if value:
-            return f"Glucose level: {value}"
+
+            result = classify_lab_result(
+                "glucose",
+                value,
+            )
+
+            return json.dumps(
+                result,
+                indent=2,
+            )
+
+    return None
+
+
+def try_structured_entity_answer(
+    context: str,
+    question: str,
+) -> str | None:
+    """
+    Structured entity extraction
+    using deterministic NLP parsing.
+    """
+
+    entities = extract_clinical_entities(context)
+
+    question_lower = question.lower()
+
+    entity_keywords = {
+        "glucose": ["glucose", "sugar"],
+        "platelets": ["platelet", "platelets"],
+        "wbc": ["wbc", "white blood"],
+        "rbc": ["rbc", "red blood"],
+        "creatinine": ["creatinine"],
+        "bilirubin": ["bilirubin"],
+        "sodium": ["sodium"],
+        "potassium": ["potassium"],
+        "hemoglobin": ["hemoglobin", "hb"],
+    }
+
+    requested_entities = []
+
+    for entity_name, keywords in entity_keywords.items():
+
+        if any(
+            keyword in question_lower
+            for keyword in keywords
+        ):
+
+            if entity_name in entities:
+
+                value = entities[entity_name]
+
+                result = classify_lab_result(
+                    entity_name,
+                    value,
+                )
+
+                requested_entities.append(
+                    json.dumps(
+                        result,
+                        indent=2,
+                    )
+                )
+
+    if requested_entities:
+        return "\n\n".join(requested_entities)
 
     return None
 
@@ -38,13 +121,16 @@ def generate_answer(
     question: str,
 ) -> str:
     """
-    Generate medical answer with:
-    1. Deterministic extraction
-    2. Safe hallucination prevention
-    3. LLM fallback only for non-structured questions
+    NeuroScribe Clinical QA Pipeline
+
+    Steps:
+    1. Regex deterministic extraction
+    2. Entity extraction
+    3. Hallucination prevention
+    4. LLM fallback
     """
 
-    # STEP 1 — structured extraction
+    # STEP 1 — regex extraction
     structured_answer = _try_structured_extraction(
         context,
         question,
@@ -53,7 +139,16 @@ def generate_answer(
     if structured_answer:
         return structured_answer
 
-    # STEP 2 — prevent hallucinations
+    # STEP 2 — entity extraction
+    entity_answer = try_structured_entity_answer(
+        context,
+        question,
+    )
+
+    if entity_answer:
+        return entity_answer
+
+    # STEP 3 — hallucination prevention
     structured_keywords = [
         "hemoglobin",
         "glucose",
@@ -78,7 +173,7 @@ def generate_answer(
                 "this information."
             )
 
-    # STEP 3 — LLM fallback only for general questions
+    # STEP 4 — LLM fallback
     prompt = f"""
 You are a clinical AI assistant.
 
