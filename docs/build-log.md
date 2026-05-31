@@ -485,3 +485,125 @@ Structured Extraction
 LLM Reasoning
       ↓
 Clinical Answer
+---
+
+# Day 16 — Clinical Entity Extraction & Hallucination Prevention
+
+## Objective
+
+Implement deterministic clinical entity extraction to reduce hallucinations
+and improve reliability of medical question answering.
+
+---
+
+## Implemented
+
+- Regex-based clinical entity extraction
+- Structured medical value parsing
+- Deterministic QA pipeline
+- Hybrid extraction + LLM orchestration
+- Hallucination prevention layer
+- Clinical-safe fallback responses
+- Structured JSON medical responses
+
+---
+
+## Features
+
+### Clinical Entity Extraction
+
+Implemented extraction for:
+
+- Hemoglobin
+- Glucose
+- Platelets
+- WBC
+- RBC
+- Creatinine
+- Bilirubin
+
+---
+
+### Deterministic Medical QA
+
+System now attempts:
+
+1. Structured extraction first
+2. Deterministic response generation
+3. LLM fallback only when necessary
+
+This greatly improves medical reliability.
+
+---
+
+### Hallucination Prevention
+
+If structured clinical data is absent:
+
+```text
+"The report does not contain this information."
+# Day 17 - Advanced Medical Retrieval Engine
+
+## Objective
+
+Enhance NeuroScribe's retrieval layer by implementing a persistent FAISS vector database with medical-aware hybrid search.
+
+## Features Implemented
+
+### Persistent Vector Store
+
+* FAISS index persistence
+* Metadata persistence using JSON
+* Automatic index loading during application startup
+* Consistency validation between vectors and metadata
+
+### Semantic Search
+
+* Cosine similarity retrieval using normalized embeddings
+* Top-K chunk retrieval
+* Configurable similarity thresholds
+
+### Medical Query Expansion
+
+Implemented synonym-based query enrichment for common clinical terminology.
+
+Examples:
+
+* Hemoglobin → Hb, Hgb
+* Glucose → Sugar, Blood Glucose
+* WBC → White Blood Cell
+* RBC → Red Blood Cell
+
+### Hybrid Retrieval Scoring
+
+Combined:
+
+* Semantic similarity score
+* Keyword match boosting
+* Laboratory value detection boosting
+
+This improves retrieval quality for clinical reports and diagnostic documents.
+
+### Clinical Data Awareness
+
+Added automatic laboratory-value detection using regex patterns to prioritize medically relevant chunks.
+
+### Retrieval Debugging
+
+Implemented retrieval logging showing:
+
+* User query
+* Similarity scores
+* Retrieved chunk identifiers
+* Content previews
+
+## Technical Components
+
+* FAISS
+* Sentence Transformer Embeddings
+* NumPy
+* FastAPI Integration
+
+## Outcome
+
+NeuroScribe now supports persistent, medically optimized Retrieval-Augmented Generation (RAG) capable of locating clinically relevant report sections with improved accuracy and explainability.
