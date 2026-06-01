@@ -56,6 +56,10 @@ from routers.comparison import (
     router as comparison_router
 )
 
+from patient_insights import (
+    router as patient_insights_router
+)
+
 
 # =========================================
 # FASTAPI APP
@@ -118,6 +122,8 @@ app.include_router(reports_router)
 app.include_router(timeline_router)
 
 app.include_router(comparison_router)
+
+app.include_router(patient_insights_router)
 
 
 # =========================================

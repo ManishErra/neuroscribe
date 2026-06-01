@@ -1,6 +1,10 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock
+
+# Mock sentence-transformers to avoid slow network/Hugging Face loading in sandbox
+sys.modules['sentence_transformers'] = MagicMock()
 
 # Add backend directory to sys.path
 _BACKEND_DIR = Path(__file__).resolve().parent
