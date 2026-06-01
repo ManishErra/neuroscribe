@@ -40,11 +40,23 @@ LAB_VALUE_PATTERN = re.compile(
 )
 
 MEDICAL_QUERY_SYNONYMS = {
-    "hemoglobin": ["hb", "hgb"],
+    "hemoglobin": ["hb", "hgb", "haemoglobin"],
+    "hb": ["hemoglobin", "hgb", "haemoglobin"],
+    "hgb": ["hemoglobin", "hb", "haemoglobin"],
+    
     "glucose": ["sugar", "blood glucose"],
-    "wbc": ["white blood cell"],
-    "rbc": ["red blood cell"],
-    "platelets": ["platelet count"],
+    "sugar": ["glucose", "blood glucose"],
+    
+    "wbc": ["white blood cell", "white blood cells", "white blood count"],
+    "white blood": ["wbc", "white blood cells", "white blood count"],
+    
+    "rbc": ["red blood cell", "red blood cells", "red blood count"],
+    "red blood": ["rbc", "red blood cells", "red blood count"],
+    
+    "platelet": ["platelets", "platelet count", "plt"],
+    "platelets": ["platelet", "platelet count", "plt"],
+    "plt": ["platelet", "platelets", "platelet count"],
+    
     "creatinine": ["creat"],
     "bilirubin": ["bili"],
 }
@@ -448,8 +460,8 @@ def search_similar_chunks(
 
     candidate_k = min(
         max(
-            top_k,
-            top_k * SEARCH_OVERSAMPLE_FACTOR,
+            150,  # Increase candidate depth to avoid duplicate report saturation
+            top_k * SEARCH_OVERSAMPLE_FACTOR * 5,
         ),
         _index.ntotal,
     )
@@ -476,15 +488,13 @@ def search_similar_chunks(
 
         meta = _chunk_metadata[idx]
 
-        chunk_key = (
-            meta["report_id"],
-            meta["chunk_index"],
-        )
+        # De-duplicate by normalized chunk text to prevent duplicate reports crowding out results
+        norm_text = " ".join(meta["chunk_text"].lower().split())
 
-        if chunk_key in seen_chunks:
+        if norm_text in seen_chunks:
             continue
 
-        seen_chunks.add(chunk_key)
+        seen_chunks.add(norm_text)
 
         similarity = float(score)
 
@@ -503,10 +513,17 @@ def search_similar_chunks(
         if LAB_VALUE_PATTERN.search(chunk_lower):
             lab_bonus = 0.08
 
+        # Hemoglobin unit super-boost: prioritize g/dL chunks for hemoglobin queries
+        hb_unit_boost = 0.0
+        query_lower = query.lower()
+        if ("hemoglobin" in query_lower or "hb" in query_lower or "hgb" in query_lower) and ("g/dl" in chunk_lower):
+            hb_unit_boost = 0.25
+
         final_score = (
             similarity
             + keyword_bonus
             + lab_bonus
+            + hb_unit_boost
         )
 
         if final_score < similarity_threshold:
@@ -523,6 +540,14 @@ def search_similar_chunks(
         key=lambda item: item["similarity_score"],
         reverse=True,
     )
+
+    # Debug logging for hemoglobin queries to trace top 10 unique chunks
+    query_lower = query.lower()
+    if "hemoglobin" in query_lower or "hb" in query_lower or "hgb" in query_lower:
+        print("\n[DEBUG] Top 10 unique retrieval results for Hemoglobin query:")
+        for rank, hit in enumerate(results[:10], start=1):
+            print(f"  Rank {rank} [Score: {hit['similarity_score']}] [Idx: {hit['chunk_index']}]: {repr(hit['chunk_text'])[:120]}")
+        print("-" * 50)
 
     results = results[:top_k]
 

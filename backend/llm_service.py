@@ -30,6 +30,7 @@ def _try_structured_extraction(
 
         if value:
 
+            print(f"[DEBUG] _try_structured_extraction: Extracted Hemoglobin = '{value}'")
             result = classify_lab_result(
                 "hemoglobin",
                 value,
@@ -47,6 +48,7 @@ def _try_structured_extraction(
 
         if value:
 
+            print(f"[DEBUG] _try_structured_extraction: Extracted Glucose = '{value}'")
             result = classify_lab_result(
                 "glucose",
                 value,
@@ -98,6 +100,7 @@ def try_structured_entity_answer(
 
                 value = entities[entity_name]
 
+                print(f"[DEBUG] try_structured_entity_answer: Extracted {entity_name} = '{value}'")
                 result = classify_lab_result(
                     entity_name,
                     value,

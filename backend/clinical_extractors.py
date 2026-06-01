@@ -5,7 +5,7 @@ from typing import Optional
 HEMOGLOBIN_PATTERNS = [
 
     re.compile(
-        r"(?:hemoglobin|haemoglobin|hgb)\s*[:=\-]?\s*(\d+(?:\.\d+)?)",
+        r"\b(?:hemoglobin|haemoglobin|hgb|hb)\b(?!\s*[-_]?\s*(?:a1c|a2))(?:(?!a1c|a2|electrophoresis)[^\n]){0,50}?\b(\d+(?:\.\d+)?(?:\s*g/dl)?)\b(?!\s*%)",
         re.IGNORECASE,
     ),
 
@@ -30,7 +30,8 @@ def extract_hemoglobin(
 
     text_lower = text.lower()
 
-    # Reject known non-hemoglobin contexts
+    # Reject known non-hemoglobin contexts line-by-line
+    text_lines = text.splitlines()
     blocked_terms = [
         "hba1c",
         "a1c",
@@ -41,32 +42,35 @@ def extract_hemoglobin(
         "fetal hb",
     ]
 
-    for blocked in blocked_terms:
-        if blocked in text_lower:
-            return None
-
-    for pattern in HEMOGLOBIN_PATTERNS:
-
-        match = pattern.search(text)
-
-        if not match:
+    for line in text_lines:
+        line_lower = line.lower()
+        if any(blocked in line_lower for blocked in blocked_terms):
             continue
 
-        value = match.group(1)
+        for pattern in HEMOGLOBIN_PATTERNS:
 
-        if value is None:
-            continue
+            match = pattern.search(line)
 
-        try:
+            if not match:
+                continue
 
-            numeric = float(value)
+            value = match.group(1)
 
-            # realistic blood hemoglobin range
-            if 5 <= numeric <= 20:
-                return f"{numeric} g/dL"
+            if value is None:
+                continue
 
-        except ValueError:
-            continue
+            # Strip any units or spacing to parse float
+            numeric_str = re.sub(r"[^\d.]", "", value)
+            try:
+
+                numeric = float(numeric_str)
+
+                # realistic blood hemoglobin range
+                if 5 <= numeric <= 20:
+                    return f"{numeric} g/dL"
+
+            except ValueError:
+                continue
 
     return None
 

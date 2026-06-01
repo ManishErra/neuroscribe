@@ -5,9 +5,7 @@ from typing import Dict, Optional
 ENTITY_PATTERNS = {
 
     "hemoglobin": [
-        r"hemoglobin[:\s]+([\d\.-]+)",
-        r"hb[:\s]+([\d\.-]+)",
-        r"([\d\.]+-[\d\.]+\s?%)",
+        r"\b(?:hemoglobin|haemoglobin|hgb|hb)\b(?!\s*[-_]?\s*(?:a1c|a2))(?:(?!a1c|a2|electrophoresis)[^\n]){0,50}?\b(\d+(?:\.\d+)?(?:\s*g/dl)?)\b(?!\s*%)",
     ],
 
     "glucose": [
@@ -17,18 +15,15 @@ ENTITY_PATTERNS = {
     ],
 
     "platelets": [
-        r"platelets?[:\s]+([\d,]+)",
-        r"platelet count[:\s]+([\d,]+)",
+        r"\b(?:platelets?|plt)\b.{0,100}?\b(\d+(?:[\d,]*\d)?)\b",
     ],
 
     "wbc": [
-        r"wbc[:\s]+([\d,\.]+)",
-        r"white blood cells?[:\s]+([\d,\.]+)",
+        r"\b(?:wbc|white blood cells?|white blood count)\b.{0,100}?\b(\d+(?:[\d,]*\d)?)\b",
     ],
 
     "rbc": [
-        r"rbc[:\s]+([\d,\.]+)",
-        r"red blood cells?[:\s]+([\d,\.]+)",
+        r"\b(?:rbc|red blood cells?|red blood count)\b.{0,100}?\b(\d+(?:\.\d+)?)\b",
     ],
 
     "creatinine": [
@@ -76,7 +71,7 @@ def extract_clinical_entities(
     if not text or not text.strip():
         return extracted
 
-    normalized_text = text.lower()
+    normalized_text = text
 
     for entity_name, patterns in ENTITY_PATTERNS.items():
 
@@ -86,6 +81,15 @@ def extract_clinical_entities(
         )
 
         if value:
+            if entity_name == "hemoglobin":
+                # Validate range to prevent matching arbitrary numbers like 120
+                numeric_str = re.sub(r"[^\d.]", "", value)
+                try:
+                    numeric = float(numeric_str)
+                    if not (5 <= numeric <= 20):
+                        continue
+                except ValueError:
+                    continue
             extracted[entity_name] = value
 
     return extracted

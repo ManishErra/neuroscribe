@@ -15,7 +15,17 @@ REFERENCE_RANGES = {
     "platelets": {
         "low": 150000,
         "high": 450000,
-        "unit": "/cumm",
+        "unit": "/cmm",
+    },
+    "wbc": {
+        "low": 4000,
+        "high": 11000,
+        "unit": "/cmm",
+    },
+    "rbc": {
+        "low": 4.5,
+        "high": 5.9,
+        "unit": "million/cmm",
     },
 }
 
