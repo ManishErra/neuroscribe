@@ -607,11 +607,485 @@ Implemented retrieval logging showing:
 ## Outcome
 
 NeuroScribe now supports persistent, medically optimized Retrieval-Augmented Generation (RAG) capable of locating clinically relevant report sections with improved accuracy and explainability.
-# Day 18 entry containing:
+# NeuroScribe Development Log
+## Days 18–20 Milestone
+### Clinical Intelligence, Retrieval Optimization & Explainability
 
-Hemoglobin extraction fix
-HbA1c prevention
-Retrieval ranking investigation
-Duplicate chunk saturation fix
-Clinical unit boosting
-Full validation success
+---
+
+# Overview
+
+This milestone focused on improving NeuroScribe's clinical extraction accuracy, retrieval quality, evaluation framework, and answer transparency.
+
+The system evolved from a basic OCR → RAG pipeline into an explainable clinical AI assistant capable of deterministic extraction, retrieval validation, confidence scoring, and source attribution.
+
+---
+
+# Day 18 – Clinical Extraction Validation & Bug Fixing
+
+## Objective
+
+Improve the reliability of clinical entity extraction and eliminate extraction failures caused by OCR noise, duplicate reports, and laboratory formatting variations.
+
+---
+
+## Features Implemented
+
+### Clinical Entity Extraction Enhancements
+
+Improved extraction support for:
+
+- Hemoglobin (Hb, HGB, Haemoglobin)
+- WBC
+- RBC
+- Platelets
+- Glucose
+- Creatinine
+- Bilirubin
+
+---
+
+### OCR Noise Tolerance
+
+Enhanced regex patterns to handle OCR-generated artifacts:
+
+Examples:
+
+WBC Count ... 10570
+
+Platelet Count ----- 150000
+
+RBC | 4.79
+
+Hemoglobin Colorimetric 14.5 g/dL
+
+---
+
+### Hemoglobin Extraction Improvements
+
+Resolved multiple extraction issues:
+
+- HbA1c interference
+- HbA2 false positives
+- Electrophoresis report contamination
+- Percentage value misclassification
+
+Implemented:
+
+- Context-aware filtering
+- Physiological range validation
+- Same-line extraction safeguards
+- Local context blocking
+
+---
+
+### Clinical Reference Range Classification
+
+Added deterministic interpretation logic:
+
+| Test | Normal Range |
+|--------|--------|
+| Hemoglobin | 12–17 g/dL |
+| WBC | 4000–11000 /cmm |
+| RBC | 4.5–5.9 million/cmm |
+| Platelets | 150000–450000 /cmm |
+| Glucose | 70–110 mg/dL |
+
+---
+
+### Automated Validation Suite
+
+Implemented and validated:
+
+- Hemoglobin extraction
+- HbA1c prevention
+- WBC extraction
+- RBC extraction
+- Platelet extraction
+- OCR noise handling
+- End-to-end clinical QA validation
+
+Result:
+
+ALL TESTS PASSED SUCCESSFULLY
+
+---
+
+## Outcome
+
+NeuroScribe achieved stable and deterministic clinical entity extraction with robust OCR tolerance and accurate laboratory value classification.
+
+---
+
+# Day 19 – Query Rewriting & Retrieval Evaluation
+
+## Objective
+
+Improve retrieval accuracy and establish measurable evaluation metrics for the RAG pipeline.
+
+---
+
+## Features Implemented
+
+### Clinical Query Rewriter
+
+Created:
+
+backend/clinical_query_rewriter.py
+
+Expanded medical abbreviations and synonyms automatically.
+
+Examples:
+
+Hb → Hemoglobin, HGB
+
+WBC → White Blood Cell
+
+RBC → Red Blood Cell
+
+Platelet → PLT
+
+---
+
+### Retrieval Evaluation Framework
+
+Created:
+
+backend/evaluation_cases.json
+
+backend/evaluate_retrieval.py
+
+Implemented automated retrieval benchmarking.
+
+---
+
+### Retrieval Metrics
+
+Measured:
+
+- Top-1 Accuracy
+- Top-5 Accuracy
+- Retrieval Accuracy
+
+---
+
+### Retrieval Improvements
+
+#### Duplicate Chunk Suppression
+
+Implemented text-based de-duplication to prevent duplicate report uploads from saturating retrieval results.
+
+---
+
+#### Medical Keyword Boosting
+
+Added domain-specific keyword relevance scoring.
+
+---
+
+#### Hemoglobin Retrieval Optimization
+
+Added laboratory unit prioritization:
+
+g/dL
+
+This ensured CBC Hemoglobin values ranked above HbA1c analytical content.
+
+---
+
+### Evaluation Results
+
+Total Test Cases : 6
+
+Passed : 6
+
+Failed : 0
+
+Top-1 Accuracy : 66.67%
+
+Top-5 Accuracy : 100.00%
+
+Retrieval Accuracy : 100.00%
+
+---
+
+## Outcome
+
+NeuroScribe now retrieves clinically relevant chunks consistently and can quantitatively evaluate retrieval quality.
+
+---
+
+# Day 20 – Confidence & Explainability Layer
+
+## Objective
+
+Make NeuroScribe responses transparent, explainable, and auditable.
+
+---
+
+## Features Implemented
+
+### Confidence Scoring Engine
+
+Created:
+
+backend/confidence_scoring.py
+
+Implemented weighted confidence calculation:
+
+Confidence =
+(Retrieval Score × 0.40)
++
+(Extraction Certainty × 0.50)
++
+(Direct Match Bonus × 0.10)
+
+Where:
+
+- Retrieval Score = FAISS similarity score
+- Extraction Certainty = 0.95 for deterministic extraction
+- Extraction Certainty = 0.75 for LLM fallback
+- Direct Match Bonus = 0.10 when the entity appears explicitly in the source chunk
+
+---
+
+### Confidence Labels
+
+Added human-readable confidence categories:
+
+| Score | Label |
+|---------|---------|
+| ≥ 0.85 | HIGH |
+| 0.60–0.84 | MEDIUM |
+| < 0.60 | LOW |
+
+Implemented confidence rounding before classification to prevent floating-point precision issues.
+
+---
+
+### Confidence Reasons
+
+Added explainability support:
+
+Example:
+
+{
+  "confidence_reason": [
+    "Deterministic regex extraction",
+    "High similarity score",
+    "Top 3 retrieval result",
+    "Direct entity name match"
+  ]
+}
+
+---
+
+### Confidence Breakdown
+
+Added visibility into confidence components:
+
+{
+  "confidence_breakdown": {
+    "retrieval_component": 0.34,
+    "extraction_component": 0.47,
+    "direct_match_component": 0.10
+  }
+}
+
+---
+
+### Source Attribution
+
+Added answer provenance metadata:
+
+- retrieval_score
+- source_chunk_rank
+- source_report_id
+- source_preview
+
+Example:
+
+{
+  "retrieval_score": 0.847,
+  "source_chunk_rank": 3,
+  "source_report_id": "report-id",
+  "source_preview": "Hemoglobin Colorimetric 14.5 g/dL..."
+}
+
+---
+
+### API Response Enrichment
+
+Clinical responses now include:
+
+{
+  "test": "hemoglobin",
+  "value": "14.5 g/dL",
+  "status": "NORMAL",
+  "confidence": 0.91,
+  "confidence_label": "HIGH",
+  "confidence_reason": [...],
+  "confidence_breakdown": {...},
+  "retrieval_score": 0.847,
+  "source_chunk_rank": 3,
+  "source_preview": "...",
+  "source_report_id": "..."
+}
+
+---
+
+### Query Preservation Verification
+
+Verified:
+
+- Original user query remains unchanged.
+- Query rewriting is used internally only.
+- User-facing responses preserve the original question.
+
+---
+
+### Validation
+
+Created:
+
+backend/validate_api_responses.py
+
+Validated:
+
+- Hemoglobin
+- WBC
+- RBC
+- Platelets
+
+All enriched responses generated successfully.
+
+---
+
+### Regression Testing
+
+#### Day 18 Clinical Extraction Suite
+
+Status: PASSED
+
+Verified:
+
+- Hemoglobin extraction
+- HbA1c prevention
+- WBC extraction
+- RBC extraction
+- Platelet extraction
+- OCR noise handling
+- End-to-end clinical QA
+
+---
+
+#### Day 19 Retrieval Evaluation
+
+Status: PASSED
+
+Results:
+
+Total Test Cases : 6
+
+Passed : 6
+
+Failed : 0
+
+Top-1 Accuracy : 66.67%
+
+Top-5 Accuracy : 100.00%
+
+Retrieval Accuracy : 100.00%
+
+---
+
+## Outcome
+
+NeuroScribe now provides:
+
+- Explainable clinical answers
+- Confidence scoring
+- Confidence labels
+- Confidence reasons
+- Confidence breakdown diagnostics
+- Retrieval transparency
+- Source attribution
+- Auditability of responses
+
+---
+
+# Milestone Outcome (Days 18–20)
+
+By the end of Day 20, NeuroScribe evolved into an explainable clinical AI pipeline with:
+
+### Clinical Intelligence
+
+- Deterministic clinical extraction
+- Clinical range interpretation
+- OCR-tolerant parsing
+
+### Retrieval Intelligence
+
+- Clinical query rewriting
+- Retrieval evaluation framework
+- Retrieval accuracy metrics
+- Duplicate suppression
+- Medical keyword boosting
+
+### Explainability
+
+- Confidence scoring
+- Confidence labels
+- Confidence reasons
+- Confidence breakdown
+- Source attribution
+- Retrieval transparency
+
+---
+
+# Current Architecture
+
+PDF Upload
+↓
+OCR Extraction
+↓
+Clinical Text Preprocessing
+↓
+Chunking
+↓
+Embedding Generation
+↓
+FAISS Vector Search
+↓
+Clinical Query Rewriting
+↓
+Retrieval Evaluation
+↓
+Clinical Entity Extraction
+↓
+Confidence Scoring
+↓
+Explainability Layer
+↓
+Clinical Answer Generation
+
+---
+
+# Project Status
+
+Day 18 ✅ Complete
+
+Day 19 ✅ Complete
+
+Day 20 ✅ Complete
+
+Day 21 ✅ Complete
+
+---
+
+# Next Milestone
+
+Day 22 – Advanced Multi-Patient Cohort Analytics
+
+Goal:
+Support multi-patient dashboard analytics, clinical cohorts grouping, and semantic patient cohorts query retrieval.

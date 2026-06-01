@@ -1,3 +1,12 @@
+import sys
+from pathlib import Path
+
+# Add backend directory to sys.path to guarantee that unmodified local absolute imports 
+# in the repository (e.g. from audio.py, notes.py) resolve cleanly.
+_BACKEND_DIR = Path(__file__).resolve().parent
+if str(_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_DIR))
+
 from fastapi import FastAPI
 
 from fastapi.middleware.cors import (
@@ -37,6 +46,10 @@ from routers.search import (
 
 from routers.reports import (
     router as reports_router
+)
+
+from routers.timeline import (
+    router as timeline_router
 )
 
 
@@ -97,6 +110,8 @@ app.include_router(embed_router)
 app.include_router(ask_router)
 
 app.include_router(reports_router)
+
+app.include_router(timeline_router)
 
 
 # =========================================
