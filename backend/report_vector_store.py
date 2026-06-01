@@ -444,7 +444,8 @@ def search_similar_chunks(
 
         return []
 
-    expanded_query = _expand_medical_query(query)
+    from clinical_query_rewriter import rewrite_query
+    expanded_query = rewrite_query(query)
 
     embed_query = prepare_text_for_embedding(expanded_query)
 

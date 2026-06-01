@@ -607,3 +607,11 @@ Implemented retrieval logging showing:
 ## Outcome
 
 NeuroScribe now supports persistent, medically optimized Retrieval-Augmented Generation (RAG) capable of locating clinically relevant report sections with improved accuracy and explainability.
+# Day 18 entry containing:
+
+Hemoglobin extraction fix
+HbA1c prevention
+Retrieval ranking investigation
+Duplicate chunk saturation fix
+Clinical unit boosting
+Full validation success
