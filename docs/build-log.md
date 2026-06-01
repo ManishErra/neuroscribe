@@ -1089,3 +1089,258 @@ Day 22 – Advanced Multi-Patient Cohort Analytics
 
 Goal:
 Support multi-patient dashboard analytics, clinical cohorts grouping, and semantic patient cohorts query retrieval.
+
+# Day 22 – Clinical Comparison & Change Detection
+
+## Goal
+
+Enable NeuroScribe to compare a patient's most recent clinical reports and identify meaningful laboratory changes over time.
+
+The objective was to move beyond simple timeline visualization and provide automated change detection, percentage calculations, and clinical interpretation between consecutive reports.
+
+---
+
+## Features Implemented
+
+### Clinical Comparison Engine
+
+Created a dedicated comparison layer that analyzes the two most recent chronological reports for a patient and calculates:
+
+* Previous laboratory value
+* Current laboratory value
+* Absolute change
+* Percentage change
+* Clinical change classification
+
+Supported laboratory markers:
+
+* Hemoglobin
+* WBC
+* RBC
+* Platelets
+* Glucose
+
+---
+
+### Clinical Significance Thresholds
+
+Implemented medical significance thresholds to prevent meaningless fluctuations from being classified as real clinical changes.
+
+Thresholds:
+
+| Test       | Threshold       |
+| ---------- | --------------- |
+| Hemoglobin | 0.5 g/dL        |
+| WBC        | 500 /cmm        |
+| RBC        | 0.1 million/cmm |
+| Platelets  | 10,000 /cmm     |
+| Glucose    | 5 mg/dL         |
+
+Changes below threshold are classified as:
+
+```text
+STABLE
+```
+
+---
+
+### Boundary-Aware Clinical Classification
+
+Integrated comparison logic with the reference ranges already used throughout NeuroScribe.
+
+Classification outcomes:
+
+```text
+IMPROVED
+WORSENED
+STABLE
+INSUFFICIENT_DATA
+```
+
+Decision logic:
+
+* Movement toward healthy reference range → IMPROVED
+* Movement away from healthy reference range → WORSENED
+* Clinically insignificant change → STABLE
+* Missing historical data → INSUFFICIENT_DATA
+
+---
+
+### FastAPI Endpoint
+
+Added a dedicated comparison endpoint:
+
+```http
+GET /compare/{patient_id}
+```
+
+The endpoint returns:
+
+* Patient information
+* Previous value
+* Current value
+* Absolute difference
+* Percentage difference
+* Clinical interpretation
+
+---
+
+## Example Response
+
+```json
+{
+  "patient_id": "51773efc-479b-469d-931d-cd483786c20e",
+  "patient_name": "Radhika Erra",
+  "comparison": {
+    "hemoglobin": {
+      "previous_value": "14.5 g/dL",
+      "current_value": "14.5 g/dL",
+      "absolute_change": 0.0,
+      "percentage_change": 0.0,
+      "change_classification": "STABLE"
+    }
+  }
+}
+```
+
+---
+
+## Files Created
+
+```text
+backend/clinical_comparison.py
+backend/routers/comparison.py
+backend/comparison_tests.py
+```
+
+---
+
+## Files Modified
+
+```text
+backend/main.py
+docs/build-log.md
+```
+
+---
+
+## Validation Performed
+
+### Day 22 Tests
+
+```text
+comparison_tests.py
+PASS
+```
+
+Validated:
+
+* Threshold calculations
+* Percentage calculations
+* Stable classifications
+* Improved classifications
+* Worsened classifications
+* Insufficient-data scenarios
+* Router endpoint behavior
+
+---
+
+### Real Database Verification
+
+Patient Tested:
+
+```text
+Radhika Erra
+51773efc-479b-469d-931d-cd483786c20e
+```
+
+Result:
+
+```text
+Hemoglobin  : STABLE
+WBC         : STABLE
+RBC         : STABLE
+Platelets   : STABLE
+Glucose     : INSUFFICIENT_DATA
+```
+
+The comparison endpoint successfully processed real database records and returned valid clinical interpretations.
+
+---
+
+## Regression Verification
+
+All previous milestones remain operational.
+
+### Day 18
+
+```text
+run_tests.py
+PASS
+```
+
+Clinical extraction remains functional.
+
+### Day 19
+
+```text
+evaluate_retrieval.py
+PASS
+```
+
+Retrieval quality remains unchanged.
+
+### Day 20
+
+```text
+validate_api_responses.py
+PASS
+```
+
+Confidence scoring and explainability remain functional.
+
+### Day 21
+
+```text
+timeline_tests.py
+PASS
+```
+
+Clinical timeline generation remains functional.
+
+---
+
+## Architecture Status
+
+Completed Components:
+
+```text
+OCR Processing                     ✅
+Report Chunking                    ✅
+Embedding Generation               ✅
+FAISS Vector Search                ✅
+Clinical Entity Extraction         ✅
+Clinical Confidence Scoring        ✅
+Clinical Timeline Generation       ✅
+Clinical Comparison Engine         ✅
+```
+
+---
+
+## Outcome
+
+Day 22 successfully introduced longitudinal clinical comparison and change detection capabilities to NeuroScribe.
+
+The platform can now:
+
+* Track laboratory values across reports
+* Quantify changes over time
+* Detect clinically meaningful movement
+* Provide structured comparison responses through the API
+* Support future trend analytics and cohort-level analysis
+
+Status:
+
+✅ Day 22 Complete
+✅ Production Verified
+✅ Regression Safe

@@ -52,6 +52,10 @@ from routers.timeline import (
     router as timeline_router
 )
 
+from routers.comparison import (
+    router as comparison_router
+)
+
 
 # =========================================
 # FASTAPI APP
@@ -112,6 +116,8 @@ app.include_router(ask_router)
 app.include_router(reports_router)
 
 app.include_router(timeline_router)
+
+app.include_router(comparison_router)
 
 
 # =========================================
