@@ -41,12 +41,15 @@ def ask_question(request: AskRequest):
         for chunk in results
     )
 
+    from clinical_query_rewriter import rewrite_query
+    expanded_query = rewrite_query(request.question)
+
     # STEP 4 — generate answer
     try:
 
         answer = generate_answer(
             context=context,
-            question=request.question,
+            question=expanded_query,
         )
 
     except Exception as e:
@@ -57,14 +60,38 @@ def ask_question(request: AskRequest):
             "chunks_used": results,
         }
 
-    # STEP 5 — attempt JSON parsing
+    # STEP 5 — attempt JSON parsing and confidence/source attribution enrichment
+    parsed_answer = None
     try:
-
-        parsed_answer = json.loads(answer)
-
+        # Check if multiple JSON objects are separated by double newline
+        if "\n\n" in answer.strip():
+            parts = [p.strip() for p in answer.split("\n\n") if p.strip()]
+            parsed_list = []
+            for part in parts:
+                try:
+                    parsed_list.append(json.loads(part))
+                except Exception:
+                    pass
+            if parsed_list:
+                parsed_answer = parsed_list
+        
+        if parsed_answer is None:
+            parsed_answer = json.loads(answer)
     except Exception:
-
         parsed_answer = answer
+
+    # Enrich structured clinical answers
+    try:
+        from confidence_scoring import enrich_structured_answer
+        if isinstance(parsed_answer, dict):
+            parsed_answer = enrich_structured_answer(parsed_answer, results)
+        elif isinstance(parsed_answer, list):
+            parsed_answer = [
+                enrich_structured_answer(item, results) if isinstance(item, dict) else item
+                for item in parsed_answer
+            ]
+    except Exception as e:
+        print(f"[ERROR] Failed to enrich structured answer: {e}")
 
     # STEP 6 — final API response
     return {
