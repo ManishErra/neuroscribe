@@ -14,6 +14,7 @@ import PatientDirectoryPage from '@/pages/PatientDirectory/PatientDirectoryPage'
 import PatientProfilePage from '@/pages/PatientProfile/PatientProfilePage';
 import OverviewTab from '@/pages/PatientProfile/tabs/OverviewTab';
 import SessionsTab from '@/pages/PatientProfile/tabs/SessionsTab';
+import ReportsTab from '@/pages/PatientProfile/tabs/ReportsTab';
 import SessionDetailPage from '@/pages/SessionDetail/SessionDetailPage';
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
@@ -76,7 +77,7 @@ const router = createBrowserRouter([
           { index: true,          element: <Navigate to="overview" replace /> },
           { path: 'overview',     element: <OverviewTab /> },
           { path: 'sessions',     element: <SessionsTab /> },
-          { path: 'reports',      element: <ComingSoon label="Reports Tab" /> },
+          { path: 'reports',      element: <ReportsTab /> },
           { path: 'insights',     element: <ComingSoon label="Insights Tab" /> },
           { path: 'timeline',     element: <ComingSoon label="Timeline Tab" /> },
         ],

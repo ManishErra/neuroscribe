@@ -1746,4 +1746,41 @@ Status:
     3. Use `analyser.fftSize = 64` or `128` to extract real-time frequency/amplitude byte data (`analyser.getByteFrequencyData`).
     4. Set up a standard `requestAnimationFrame` loop to feed the array values to the React state or direct canvas context to drive the bar heights dynamically.
 
+---
+
+# Day 30 — Reports Workspace & PDF Ingestion Pipeline
+
+## Goal
+Implement a production-grade **Reports Workspace** child tab (`/patients/:patientId/reports`) establishing interactive file uploads, raw OCR transcription monospace screens, and dynamic pipeline checklists connected to live backend FastAPI endpoints.
+
+## Technical Decisions & Implementations
+- **Router Integration:** Registered first-class sub-route `/patients/:patientId/reports` mapped to `<ReportsTab />` inside [App.tsx](file:///c:/Users/Manish/AI-Projects/neuroscribe/client/src/App.tsx#L79).
+- **Axios & Query Hook Integrations:**
+  - `reports.service.ts` + hooks (`useReports`, `useReport`, `useUploadReport`, `useRunOcr`) connecting patient listings, report detail fetches, multi-part uploads, and Textract engines.
+- **Split-View Page Architecture (`ReportsTab.tsx`):**
+  - Grid partitions the screen into Left Column (40% width) for uploads/history lists and Right Column (60% width) for active document reviews.
+  - **Left Section Components:**
+    - *Drag-and-Drop Dropzone:* Dash-bordered ingestion block with active hover scale styled using premium Sage green tokens (`#508a7b`), handling PDF and image files up to 50MB.
+    - *Archive List:* Visual cards highlighting filenames, upload dates, and custom progress badges (ready in emerald, pending in amber, and failed in rose).
+  - **Right Section Components:**
+    - *Metadata Header:* Filename indicators, dynamic creation dates, download action tags, and standard "Run OCR Processing" triggers.
+    - *Document Workspace Tabs:*
+      - *Parsed Text Tab:* monospaced typographical scroll viewport presenting parsed OCR logs with copy buttons.
+      - *Pipeline Status Tab:* Traces file upload tracking lines showing checklist verification steps.
+      - *Extracted Lab Values Tab:* Incorporates a refined UX card explaining that individual report tables are not currently isolated, raw text has been fully preserved, and vectors are indexed in the FAISS database to enable downstream clinical cohort queries and RAG groundings.
+- **External Preview Strategy:** programmatically launches dynamic download targets pointing to backend static paths (`http://localhost:8000/uploads/reports/...`) inside new windows (`_blank`), avoiding unstable iframe sandboxes.
+
+## Validation Performed
+- **Automated Verification:** `npm run lint` and `npm run build` finish successfully with **0 errors and 0 warnings** in the output log.
+- **Manual Visual Parity:** Renders responsive dual-column slate panels conforming to premium Stitch design Guidelines.
+- **Clinical modulatity:** Removed all redundant React-level clinical parsing, keeping the workspace purely backend-driven.
+
+Status:
+✅ Reports sub-routing configured
+✅ Drag-and-drop file ingestion operational
+✅ OCR timeline checklists and parsed text viewers implemented
+✅ Premium clinical placeholder cards styled
+✅ ESLint & TypeScript compile 100% clean
+
+
 
