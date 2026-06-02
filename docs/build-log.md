@@ -1832,5 +1832,61 @@ Status:
 - **Context:** No backend endpoint exists for user password changes. The Change Password button is visually disabled.
 - **Resolution:** Build `POST /auth/change-password` endpoint in the FastAPI backend and wire it to a functional modal on the settings page.
 
+---
+
+# Day 32 — Semantic Search Hub & Clinical RAG Q&A
+
+## Goal
+Build the unified semantic search hub (`/search` route) allowing clinicians to ask natural language questions or query structured diagnostic metrics across all patient reports. The search page integrates with local SettingsContext (AI RAG and confidence label controls), maps RAG query mutation responses, renders polymorphic prose summaries and structured lab cards, and attributes matches through refined clinician-friendly source cards.
+
+## Technical Decisions & Implementations
+- **Stateless Search Page (`SearchPage.tsx`):**
+  - Divided into: SearchBox header, polymorphic AnswerPanel, and attribution SourceList.
+  - Implemented stateless operation without localStorage persistence or recent query logs.
+- **Search Mutation Hook (`useAsk.ts`):**
+  - Wrapped under `useMutation` instead of query-based React Query.
+  - Intercepts state from `useSettings()` to gate retrieval requests if `aiRagEnabled` is false.
+- **Service Layer (`search.service.ts`):**
+  - Hardcodes `top_k: 5` inside the request payload, eliminating manual retrieval parameters from the UI.
+- **Polymorphic Answer Panel (`AnswerPanel.tsx`):**
+  - Type-guards polymorphic backend responses:
+    - *Plain String:* Prose Clinical Synthesis summary.
+    - *Structured dict:* Single `LabAnswerCard`.
+    - *Structured list:* Multiple `LabAnswerCard` metrics.
+  - Recovers gracefully from soft-caught errors embedded in a `200 OK` response string (e.g. LLM failure, empty context).
+- **Attribution Source Cards (`SourceCard.tsx`):**
+  - Emphasizes source document names and matching confidence scores (derived from cosine similarity scores).
+  - Encapsulates low-level database parameters (`report_id` and `chunk_index`) inside a collapsible "Technical Details" panel for clinician-friendly reading.
+- **Engine Label Constants (`constants.ts`):**
+  - Refactored `AI_ENGINE_LABEL` to `"Clinical Intelligence Engine"`, avoiding provider-specific wording and aligning with the local TinyLLaMA configuration.
+
+## Validation Performed
+- **Automated Verification:** `npm run lint` and `npm run build` completed successfully with **0 errors and 0 warnings** in the output log.
+- **RAG Engine Gating:** Disabling RAG under Settings shows a deactivated search card.
+- **Confidence Control Integration:** Disabling confidence labels in settings completely hides extraction ratings and breakdown charts.
+
+Status:
+✅ Main search route registered, replacing the ComingSoon placeholder.
+✅ SearchBox with enter-to-submit and shift-enter-newline functional.
+✅ Polymorphic AnswerPanel and LabAnswerCard with dynamic attribution details.
+✅ Collapsible Technical Details in SourceCard components.
+✅ ESLint & TypeScript build compiles 100% clean.
+
+---
+
+## Technical Debt Note
+
+### 1. Patient-Scoped Search
+- **Status:** Deferred (Day 32)
+- **Context:** `POST /ask/` searches globally across all indexed report chunks. A separate `search_similar` pgvector pipeline exists in `embeddings.py` which scopes retrieval to a single `patient_id` but is not wired to the LLM QA endpoint.
+- **Resolution:** Update the FastAPI endpoint to take an optional `patient_id` UUID and filter FAISS index metadata or run scoped pgvector queries when present.
+
+### 2. Route Lazy Loading & Bundle Optimization
+- **Status:** Deferred (Day 32)
+- **Context:** The production JS bundle size is 661 kB (`index-C1Jii4Cl.js`). Recharts is the largest dependency. Since all pages (Dashboard, PatientProfilePage, SessionDetailPage, SettingsPage, SearchPage) are statically imported in `App.tsx`, they are bundled into a single chunk.
+- **Resolution:** Refactor page imports in `App.tsx` using `React.lazy` and `Suspense` to code-split pages. Placing `PatientProfilePage` (using Recharts) behind a lazy-loading boundary will exclude Recharts from the initial page-load bundle.
+
+
+
 
 

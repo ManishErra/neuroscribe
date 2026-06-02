@@ -35,4 +35,5 @@ export const PAGE_TITLES = {
   settings:      'Settings — NeuroScribe',
 } as const;
 
-export const AI_ENGINE_LABEL = 'Groq · LLaMA (AI Engine)' as const;
+export const AI_ENGINE_LABEL = 'Clinical Intelligence Engine' as const;
+
