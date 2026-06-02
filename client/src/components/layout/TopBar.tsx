@@ -4,6 +4,8 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Search, Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useSettings } from '@/store/SettingsContext';
 
 function buildBreadcrumb(pathname: string): string {
   const parts = pathname.split('/').filter(Boolean);
@@ -45,6 +47,8 @@ export default function TopBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const breadcrumb = buildBreadcrumb(location.pathname);
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
 
   // Get active date for header display
   const today = new Date();
@@ -78,7 +82,10 @@ export default function TopBar() {
   return (
     <header
       id="topbar"
-      className="sticky top-0 z-40 flex items-center justify-between h-14 px-6 bg-background/80 backdrop-blur-sm border-b border-border select-none"
+      className={cn(
+        'sticky top-0 z-40 flex items-center justify-between bg-background/80 backdrop-blur-sm border-b border-border select-none transition-all duration-200',
+        isCompact ? 'h-11 px-4' : 'h-14 px-6'
+      )}
     >
       {/* ── Dynamic Breadcrumb Routing ────────────────────────── */}
       <nav aria-label="Breadcrumb">
@@ -88,7 +95,7 @@ export default function TopBar() {
       </nav>
 
       {/* ── Search shortcut and Date Picker ────────────────────── */}
-      <div className="flex items-center gap-4">
+      <div className={cn('flex items-center', isCompact ? 'gap-3' : 'gap-4')}>
         {/* Date tracker banner */}
         <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground border-r border-border pr-4 h-5 select-none">
           <Calendar className="h-3.5 w-3.5" />
@@ -99,7 +106,10 @@ export default function TopBar() {
         <button
           id="topbar-search"
           onClick={() => navigate('/search')}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-all duration-200"
+          className={cn(
+            'flex items-center gap-2 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-all duration-200',
+            isCompact ? 'px-2 py-1' : 'px-3 py-1.5'
+          )}
           aria-label="Open semantic search"
         >
           <Search className="h-3.5 w-3.5" />

@@ -7,10 +7,13 @@ import { usePatientOverview } from '@/features/insights/hooks/usePatientOverview
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Upload, Play, Sparkles } from 'lucide-react';
+import { useSettings } from '@/store/SettingsContext';
 import { cn } from '@/lib/utils';
 
 export default function PatientProfilePage() {
   const { patientId } = useParams<{ patientId: string }>();
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
 
   // Fetch patient profile basic details
   const { data: patient, isLoading: isPatientLoading, isError: isPatientError } = usePatient(patientId);
@@ -43,13 +46,16 @@ export default function PatientProfilePage() {
   // Visual dot details generator
   const getSubtextString = () => {
     if (!patient) return '';
-    // Format age and DOB/gender
     return `${patient.age}Y · ${patient.gender} · Blood A+`;
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto w-full select-none animate-in fade-in duration-300">
-      
+    <div
+      className={cn(
+        'flex flex-col max-w-[1600px] mx-auto w-full select-none animate-in fade-in duration-300 transition-all duration-200',
+        isCompact ? 'gap-4 p-4' : 'gap-6 p-6'
+      )}
+    >
       {/* ── Back Navigation ─────────────────────────────────────── */}
       <Link
         to="/patients"
@@ -60,25 +66,35 @@ export default function PatientProfilePage() {
       </Link>
 
       {/* ── Patient Profile Header Panel ───────────────────────── */}
-      <div className="relative rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-md p-6 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6 overflow-hidden">
+      <div
+        className={cn(
+          'relative rounded-2xl border border-white/[0.06] bg-slate-900/40 backdrop-blur-md shadow-lg flex flex-col md:flex-row md:items-center justify-between overflow-hidden transition-all duration-200',
+          isCompact ? 'p-4 gap-4' : 'p-6 gap-6'
+        )}
+      >
         {/* Decorative backdrop light mesh */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
 
-        <div className="flex items-center gap-5 z-10">
+        <div className={cn('flex items-center z-10', isCompact ? 'gap-3.5' : 'gap-5')}>
           {isLoading ? (
-            <Skeleton className="h-16 w-16 rounded-full shrink-0" />
+            <Skeleton className={cn('rounded-full shrink-0', isCompact ? 'h-12 w-12' : 'h-16 w-16')} />
           ) : (
-            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-slate-800 to-slate-700 border border-white/[0.08] flex items-center justify-center text-foreground font-semibold text-lg shadow-inner select-none shrink-0">
+            <div
+              className={cn(
+                'rounded-full bg-gradient-to-br from-slate-800 to-slate-700 border border-white/[0.08] flex items-center justify-center text-foreground font-semibold shadow-inner select-none shrink-0 transition-all duration-200',
+                isCompact ? 'h-12 w-12 text-sm' : 'h-16 w-16 text-lg'
+              )}
+            >
               {patient?.name.split(' ').map((n) => n[0]).join('').toUpperCase() || 'PT'}
             </div>
           )}
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <div className="flex items-center flex-wrap gap-3">
               {isLoading ? (
                 <Skeleton className="h-7 w-44" />
               ) : (
-                <h1 className="text-xl font-bold tracking-tight text-foreground">{patient?.name}</h1>
+                <h1 className={cn('font-bold tracking-tight text-foreground', isCompact ? 'text-lg' : 'text-xl')}>{patient?.name}</h1>
               )}
 
               {/* ID Badge */}
@@ -107,10 +123,13 @@ export default function PatientProfilePage() {
         </div>
 
         {/* Action Controls Menu */}
-        <div className="flex items-center flex-wrap gap-2.5 z-10">
+        <div className={cn('flex items-center flex-wrap z-10', isCompact ? 'gap-1.5' : 'gap-2.5')}>
           <button
             type="button"
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] active:scale-[0.98] transition-all"
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl text-xs font-semibold bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] active:scale-[0.98] transition-all',
+              isCompact ? 'px-2.5 py-1' : 'px-3.5 py-1.5'
+            )}
           >
             <Upload className="h-3.5 w-3.5 text-muted-foreground" />
             Upload Report
@@ -118,7 +137,10 @@ export default function PatientProfilePage() {
           
           <button
             type="button"
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] active:scale-[0.98] transition-all"
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl text-xs font-semibold bg-white/[0.04] border border-white/[0.08] text-foreground hover:bg-white/[0.08] active:scale-[0.98] transition-all',
+              isCompact ? 'px-2.5 py-1' : 'px-3.5 py-1.5'
+            )}
           >
             <Play className="h-3.5 w-3.5 text-muted-foreground" />
             Start Session
@@ -127,7 +149,10 @@ export default function PatientProfilePage() {
           {/* Premium Sage Green Action Button */}
           <button
             type="button"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md shadow-[#508a7b]/10 active:scale-[0.98] transition-all"
+            className={cn(
+              'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md shadow-[#508a7b]/10 active:scale-[0.98] transition-all',
+              isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
+            )}
           >
             <Sparkles className="h-3.5 w-3.5 fill-current" />
             Ask NeuroScribe
@@ -136,7 +161,7 @@ export default function PatientProfilePage() {
       </div>
 
       {/* ── Sub Navigation Tabs Deck ────────────────────────────── */}
-      <div className="border-b border-white/[0.06] flex items-center gap-6 overflow-x-auto select-none no-scrollbar">
+      <div className={cn('border-b border-white/[0.06] flex items-center overflow-x-auto select-none no-scrollbar', isCompact ? 'gap-4' : 'gap-6')}>
         {[
           { path: 'overview', label: 'Overview' },
           { path: 'reports', label: 'Reports' },
@@ -148,7 +173,8 @@ export default function PatientProfilePage() {
             to={tab.path}
             className={({ isActive }) =>
               cn(
-                'pb-3 text-xs font-bold transition-all relative select-none whitespace-nowrap',
+                'text-xs font-bold transition-all relative select-none whitespace-nowrap',
+                isCompact ? 'pb-2' : 'pb-3',
                 isActive
                   ? 'text-primary font-bold'
                   : 'text-muted-foreground hover:text-foreground'

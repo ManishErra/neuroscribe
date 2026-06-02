@@ -11,10 +11,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { formatDate as displayDate } from '@/utils/formatters';
 import { Brain, FileText, CheckCircle2, TrendingDown, TrendingUp, AlertTriangle, HelpCircle } from 'lucide-react';
+import { useSettings } from '@/store/SettingsContext';
 import { cn } from '@/lib/utils';
 
 export default function OverviewTab() {
   const { patientId } = useParams<{ patientId: string }>();
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
 
   // Parallel React Query fetches using cached state
   const { isLoading: isPatientLoading } = usePatient(patientId);
@@ -70,17 +73,17 @@ export default function OverviewTab() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 select-none">
+    <div className={cn('grid grid-cols-1 lg:grid-cols-3 select-none transition-all duration-200', isCompact ? 'gap-4' : 'gap-6')}>
       
       {/* ── Left Column (2/3 width) ─────────────────────────────── */}
-      <div className="lg:col-span-2 flex flex-col gap-6">
+      <div className={cn('lg:col-span-2 flex flex-col', isCompact ? 'gap-4' : 'gap-6')}>
         
         {/* Card 1: AI Insights */}
         <Card className="border border-white/[0.06] bg-slate-900/40 backdrop-blur-md shadow-lg rounded-2xl overflow-hidden relative">
           {/* Subtle logo vector watermark */}
           <div className="absolute -top-6 -right-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
           
-          <CardHeader className="border-b border-white/[0.06] flex flex-row items-center justify-between py-4">
+          <CardHeader className={cn('border-b border-white/[0.06] flex flex-row items-center justify-between', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-lg bg-[#508a7b]/10 border border-[#508a7b]/20 flex items-center justify-center">
                 <Brain className="h-4 w-4 text-[#508a7b]" />
@@ -99,7 +102,7 @@ export default function OverviewTab() {
             )}
           </CardHeader>
 
-          <CardContent className="p-6 flex flex-col gap-6">
+          <CardContent className={cn('flex flex-col', isCompact ? 'p-4 gap-4' : 'p-6 gap-6')}>
             
             {/* Clinical Summary Paragraph */}
             <div className="flex flex-col gap-2">
@@ -120,7 +123,7 @@ export default function OverviewTab() {
             </div>
 
             {/* Findings & Recommendations Split */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/[0.04]">
+            <div className={cn('grid grid-cols-1 md:grid-cols-2 border-t border-white/[0.04]', isCompact ? 'gap-4 pt-3' : 'gap-6 pt-4')}>
               
               {/* Key Findings List */}
               <div className="flex flex-col gap-3">
@@ -139,7 +142,10 @@ export default function OverviewTab() {
                     {insights.findings.map((finding, idx) => (
                       <div
                         key={idx}
-                        className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.01] border border-white/[0.04]"
+                        className={cn(
+                          'flex items-start gap-2.5 rounded-xl bg-white/[0.01] border border-white/[0.04]',
+                          isCompact ? 'p-1.5' : 'p-2'
+                        )}
                       >
                         {getLabStatusIcon(finding)}
                         <span className="text-xs font-semibold text-foreground/90 leading-tight">
@@ -168,7 +174,10 @@ export default function OverviewTab() {
                     {insights.recommendations.map((rec, idx) => (
                       <li
                         key={idx}
-                        className="flex items-start gap-2.5 p-2 rounded-xl bg-white/[0.01] border border-white/[0.04]"
+                        className={cn(
+                          'flex items-start gap-2.5 rounded-xl bg-white/[0.01] border border-white/[0.04]',
+                          isCompact ? 'p-1.5' : 'p-2'
+                        )}
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-[#508a7b] shrink-0 mt-1.5 shadow-[0_0_6px_rgba(80,138,123,0.6)]" />
                         <span className="text-xs font-semibold text-foreground/90 leading-tight">
@@ -187,14 +196,14 @@ export default function OverviewTab() {
 
         {/* Card 2: Latest Labs */}
         <Card className="border border-white/[0.06] bg-slate-900/40 backdrop-blur-md shadow-lg rounded-2xl overflow-hidden">
-          <CardHeader className="border-b border-white/[0.06] py-4">
+          <CardHeader className={cn('border-b border-white/[0.06]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
             <CardTitle className="text-sm font-bold tracking-wide text-foreground">
               Latest Laboratory Results
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="p-6 space-y-3">
+              <div className={cn('space-y-3', isCompact ? 'p-4' : 'p-6')}>
                 <Skeleton className="h-8 w-full animate-pulse" />
                 <Skeleton className="h-8 w-full animate-pulse" />
                 <Skeleton className="h-8 w-full animate-pulse" />
@@ -207,16 +216,16 @@ export default function OverviewTab() {
               <Table>
                 <TableHeader className="bg-white/[0.02] border-b border-white/[0.06]">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-3 h-auto select-none">
+                    <TableHead className={cn('text-[10px] font-bold uppercase tracking-widest text-muted-foreground h-auto select-none', isCompact ? 'py-2 px-4' : 'py-3 px-6')}>
                       Marker Name
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-3 h-auto select-none">
+                    <TableHead className={cn('text-[10px] font-bold uppercase tracking-widest text-muted-foreground h-auto select-none', isCompact ? 'py-2 px-4' : 'py-3 px-6')}>
                       Result Value
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-3 h-auto select-none">
+                    <TableHead className={cn('text-[10px] font-bold uppercase tracking-widest text-muted-foreground h-auto select-none', isCompact ? 'py-2 px-4' : 'py-3 px-6')}>
                       Reference boundaries
                     </TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground py-3 h-auto select-none">
+                    <TableHead className={cn('text-[10px] font-bold uppercase tracking-widest text-muted-foreground h-auto select-none', isCompact ? 'py-2 px-4' : 'py-3 px-6')}>
                       Interpretation Status
                     </TableHead>
                   </TableRow>
@@ -235,16 +244,16 @@ export default function OverviewTab() {
                         key={key}
                         className="border-b border-white/[0.04] hover:bg-white/[0.01]"
                       >
-                        <TableCell className="text-xs font-bold text-foreground py-3.5 select-none capitalize">
+                        <TableCell className={cn('text-xs font-bold text-foreground select-none capitalize', isCompact ? 'py-2 px-4' : 'py-3.5 px-6')}>
                           {key === 'wbc' ? 'WBC Count' : key === 'rbc' ? 'RBC Count' : key}
                         </TableCell>
-                        <TableCell className={cn('text-xs font-bold select-none', rowClass)}>
+                        <TableCell className={cn('text-xs font-bold select-none', rowClass, isCompact ? 'py-2 px-4' : 'py-3.5 px-6')}>
                           {val}
                         </TableCell>
-                        <TableCell className="text-xs font-semibold text-muted-foreground select-none">
+                        <TableCell className={cn('text-xs font-semibold text-muted-foreground select-none', isCompact ? 'py-2 px-4' : 'py-3.5 px-6')}>
                           {getTestRefRange(key)}
                         </TableCell>
-                        <TableCell className="text-xs font-bold select-none">
+                        <TableCell className={cn('text-xs font-bold select-none', isCompact ? 'py-2 px-4' : 'py-3.5 px-6')}>
                           {matchingFinding ? (
                             <div className="flex items-center gap-1.5">
                               {getLabStatusIcon(matchingFinding)}
@@ -273,23 +282,23 @@ export default function OverviewTab() {
       </div>
 
       {/* ── Right Column (1/3 width) ────────────────────────────── */}
-      <div className="flex flex-col gap-6">
+      <div className={cn('flex flex-col', isCompact ? 'gap-4' : 'gap-6')}>
         
         {/* Card 3: Patient Status & Flags */}
         <Card className="border border-white/[0.06] bg-slate-900/40 backdrop-blur-md shadow-lg rounded-2xl overflow-hidden select-none">
-          <CardHeader className="border-b border-white/[0.06] py-4">
+          <CardHeader className={cn('border-b border-white/[0.06]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
             <CardTitle className="text-sm font-bold tracking-wide text-foreground">
               Clinical Flags
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className={isCompact ? 'p-4' : 'p-6'}>
             {isLoading ? (
               <div className="flex flex-wrap gap-2">
                 <Skeleton className="h-6 w-24 rounded-full" />
                 <Skeleton className="h-6 w-32 rounded-full" />
               </div>
             ) : !overview?.clinical_flags || overview.clinical_flags.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01] p-6 text-center text-xs text-muted-foreground select-none">
+              <div className={cn('rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01] text-center text-xs text-muted-foreground select-none', isCompact ? 'p-4' : 'p-6')}>
                 No active clinical alerts detected.
               </div>
             ) : (
@@ -318,12 +327,12 @@ export default function OverviewTab() {
 
         {/* Card 4: Last Activity */}
         <Card className="border border-white/[0.06] bg-slate-900/40 backdrop-blur-md shadow-lg rounded-2xl overflow-hidden select-none">
-          <CardHeader className="border-b border-white/[0.06] py-4">
+          <CardHeader className={cn('border-b border-white/[0.06]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
             <CardTitle className="text-sm font-bold tracking-wide text-foreground">
               Last Diagnostic Activity
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 select-none">
+          <CardContent className={cn('select-none', isCompact ? 'p-4' : 'p-6')}>
             {isLoading ? (
               <div className="space-y-3">
                 <Skeleton className="h-4 w-1/3" />
@@ -331,11 +340,11 @@ export default function OverviewTab() {
                 <Skeleton className="h-3 w-1/2" />
               </div>
             ) : !overview?.last_activity || !overview.last_activity.type ? (
-              <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01] p-6 text-center text-xs text-muted-foreground select-none">
+              <div className={cn('rounded-xl border border-dashed border-white/[0.08] bg-white/[0.01] text-center text-xs text-muted-foreground select-none', isCompact ? 'p-4' : 'p-6')}>
                 No recorded diagnostics yet.
               </div>
             ) : (
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.01] p-4 flex gap-4 select-none relative overflow-hidden">
+              <div className={cn('rounded-2xl border border-white/[0.06] bg-white/[0.01] flex select-none relative overflow-hidden', isCompact ? 'p-3 gap-3' : 'p-4 gap-4')}>
                 <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0 select-none">
                   <FileText className="h-4 w-4" />
                 </div>

@@ -14,11 +14,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Mic, Square, Volume2, Sparkles, CheckCircle2, Lock, AlertTriangle, Copy, FileText } from 'lucide-react';
+import { useSettings } from '@/store/SettingsContext';
 import { cn } from '@/lib/utils';
 import type { ClinicalNote } from '@/features/sessions/services/sessions.service';
 
 export default function SessionDetailPage() {
   const { patientId, sessionId } = useParams<{ patientId: string; sessionId: string }>();
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
 
   // Queries
   const { data: patient, isLoading: isPatientLoading } = usePatient(patientId);
@@ -161,7 +164,7 @@ export default function SessionDetailPage() {
     if (!session?.transcript || !patient || !sessionId) return;
     
     generateNoteMutation.mutate({
-      transcriptId: sessionId, // In backend, transcript_id resolves to transcript key, let's keep it robust
+      transcriptId: sessionId,
       patientName: patient.name,
       patientAge: patient.age,
     });
@@ -171,7 +174,7 @@ export default function SessionDetailPage() {
   const handleSaveNote = () => {
     if (!patientId || !sessionId) return;
     
-    const targetNoteId = noteId || sessionId; // Resolves to either noteId from creation or sessionId as key
+    const targetNoteId = noteId || sessionId;
 
     // Convert comma textareas back to arrays
     const finalNote: ClinicalNote = {
@@ -229,12 +232,11 @@ export default function SessionDetailPage() {
 
   // Visual text extractor helper for mock activity summaries
   const renderSummaryCard = () => {
-    // If note exists (either final note, generated draft, or state draft)
     const hasNote = session?.note || generateNoteMutation.data;
     
     if (!hasNote) {
       return (
-        <Card className="border border-white/[0.06] bg-slate-900/40 p-5 rounded-2xl select-none">
+        <Card className={cn('border border-white/[0.06] bg-slate-900/40 rounded-2xl select-none', isCompact ? 'p-4' : 'p-5')}>
           <CardContent className="p-0 text-center py-4 text-xs font-semibold text-muted-foreground italic select-none">
             No summary generated yet.
           </CardContent>
@@ -246,9 +248,9 @@ export default function SessionDetailPage() {
     const planText = noteState.plan_discussed || 'No clinical plans specified.';
 
     return (
-      <Card className="border border-white/[0.06] bg-slate-900/40 p-5 rounded-2xl select-none relative overflow-hidden">
+      <Card className={cn('border border-white/[0.06] bg-slate-900/40 rounded-2xl select-none relative overflow-hidden', isCompact ? 'p-4' : 'p-5')}>
         <div className="absolute top-0 right-0 w-24 h-24 bg-[#508a7b]/5 rounded-full blur-2xl pointer-events-none" />
-        <CardHeader className="p-0 mb-3 pb-3 border-b border-white/[0.04] flex flex-row items-center gap-2 select-none">
+        <CardHeader className={cn('p-0 mb-3 border-b border-white/[0.04] flex flex-row items-center gap-2 select-none', isCompact ? 'pb-2' : 'pb-3')}>
           <div className="h-6 w-6 rounded-lg bg-[#508a7b]/10 border border-[#508a7b]/20 flex items-center justify-center text-[#508a7b] shrink-0">
             <FileText className="h-3.5 w-3.5" />
           </div>
@@ -269,8 +271,12 @@ export default function SessionDetailPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-[1600px] mx-auto w-full select-none animate-in fade-in duration-300">
-      
+    <div
+      className={cn(
+        'flex flex-col max-w-[1600px] mx-auto w-full select-none animate-in fade-in duration-300 transition-all duration-200',
+        isCompact ? 'gap-4 p-4' : 'gap-6 p-6'
+      )}
+    >
       {/* ── Breadcrumb & Header ─────────────────────────────────── */}
       <div className="flex flex-col gap-4">
         <Link
@@ -284,7 +290,7 @@ export default function SessionDetailPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center flex-wrap gap-3">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
+              <h1 className={cn('font-bold tracking-tight text-foreground', isCompact ? 'text-lg' : 'text-xl')}>
                 Consultation Session Workspace
               </h1>
               
@@ -317,23 +323,27 @@ export default function SessionDetailPage() {
       </div>
 
       {/* ── Unified Workspace Layout Grid ──────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 select-none">
+      <div className={cn('grid grid-cols-1 lg:grid-cols-2 select-none', isCompact ? 'gap-4' : 'gap-6')}>
         
         {/* ── Left Column (Audio + Transcript) ──────────────────── */}
-        <div className="flex flex-col gap-6 select-none">
+        <div className={cn('flex flex-col select-none', isCompact ? 'gap-4' : 'gap-6')}>
           
           {/* Audio Wave Recorder Panel */}
           <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden relative">
-            <CardHeader className="border-b border-white/[0.06] py-4">
+            <CardHeader className={cn('border-b border-white/[0.06]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
               <CardTitle className="text-sm font-bold tracking-wide text-foreground">
                 Audio Recorder Workspace
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 flex flex-col items-center justify-center gap-5 select-none">
+            <CardContent className={cn('flex flex-col items-center justify-center select-none', isCompact ? 'p-4 gap-3.5' : 'p-6 gap-5')}>
               
               {/* Visualized Wave / Status Block */}
-              <div className="w-full h-24 rounded-2xl bg-white/[0.01] border border-white/[0.04] flex flex-col items-center justify-center gap-2 relative overflow-hidden select-none">
-                
+              <div
+                className={cn(
+                  'w-full rounded-2xl bg-white/[0.01] border border-white/[0.04] flex flex-col items-center justify-center gap-2 relative overflow-hidden select-none transition-all duration-200',
+                  isCompact ? 'h-16' : 'h-24'
+                )}
+              >
                 {/* Visual Sage pulsing waveform loops */}
                 {isRecording && (
                   <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-25 select-none">
@@ -366,7 +376,10 @@ export default function SessionDetailPage() {
                     type="button"
                     onClick={startRecording}
                     disabled={isNoteFinalized}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50',
+                      isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
+                    )}
                   >
                     <Mic className="h-4 w-4 fill-current" />
                     Record Consultation
@@ -375,7 +388,10 @@ export default function SessionDetailPage() {
                   <button
                     type="button"
                     onClick={stopRecording}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 shadow-md transition-all active:scale-[0.98]"
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 shadow-md transition-all active:scale-[0.98]',
+                      isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
+                    )}
                   >
                     <Square className="h-4 w-4 fill-current" />
                     Stop Capturing
@@ -387,7 +403,10 @@ export default function SessionDetailPage() {
                     type="button"
                     onClick={handleUploadAudio}
                     disabled={uploadAudioMutation.isPending || isNoteFinalized}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] active:scale-[0.98] text-foreground transition-all disabled:opacity-50"
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] active:scale-[0.98] text-foreground transition-all disabled:opacity-50',
+                      isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
+                    )}
                   >
                     <Volume2 className="h-4 w-4 text-muted-foreground" />
                     {uploadAudioMutation.isPending ? 'Transcribing...' : 'Upload & Transcribe'}
@@ -400,7 +419,7 @@ export default function SessionDetailPage() {
 
           {/* Transcript Viewer Panel */}
           <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden flex flex-col flex-1">
-            <CardHeader className="border-b border-white/[0.06] flex flex-row items-center justify-between py-4 select-none">
+            <CardHeader className={cn('border-b border-white/[0.06] flex flex-row items-center justify-between select-none', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
               <CardTitle className="text-sm font-bold tracking-wide text-foreground">
                 Raw Transcript Text Viewer
               </CardTitle>
@@ -416,9 +435,14 @@ export default function SessionDetailPage() {
                 </button>
               )}
             </CardHeader>
-            <CardContent className="p-6 flex flex-col gap-5 flex-1 select-none">
+            <CardContent className={cn('flex flex-col flex-1 select-none', isCompact ? 'p-4 gap-3.5' : 'p-6 gap-5')}>
               
-              <div className="flex-1 min-h-[220px] max-h-[360px] overflow-y-auto rounded-2xl border border-white/[0.04] bg-black/10 p-4 relative select-text">
+              <div
+                className={cn(
+                  'flex-1 overflow-y-auto rounded-2xl border border-white/[0.04] bg-black/10 p-4 relative select-text transition-all duration-200',
+                  isCompact ? 'min-h-[160px] max-h-[280px]' : 'min-h-[220px] max-h-[360px]'
+                )}
+              >
                 {isLoading ? (
                   <div className="space-y-2 select-none">
                     <Skeleton className="h-4 w-full animate-pulse" />
@@ -441,7 +465,10 @@ export default function SessionDetailPage() {
                   type="button"
                   onClick={handleGenerateNote}
                   disabled={generateNoteMutation.isPending}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50 select-none"
+                  className={cn(
+                    'w-full inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50 select-none',
+                    isCompact ? 'px-3 py-1.5' : 'px-4 py-2.5'
+                  )}
                 >
                   <Sparkles className="h-4 w-4 fill-current animate-pulse" />
                   {generateNoteMutation.isPending ? 'Generating SOAP Draft...' : 'Generate SOAP Notes Draft'}
@@ -454,14 +481,14 @@ export default function SessionDetailPage() {
         </div>
 
         {/* ── Right Column (SOAP Editor + Summary) ────────────────── */}
-        <div className="flex flex-col gap-6 select-none">
+        <div className={cn('flex flex-col select-none', isCompact ? 'gap-4' : 'gap-6')}>
           
           {/* AI Session Summary Card */}
           {renderSummaryCard()}
 
           {/* SOAP Note Tabbed Form Editor */}
           <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden flex-1 flex flex-col">
-            <CardHeader className="border-b border-white/[0.06] flex flex-col gap-3 py-4 select-none">
+            <CardHeader className={cn('border-b border-white/[0.06] flex flex-col select-none', isCompact ? 'gap-2 py-2.5 px-4' : 'gap-3 py-4 px-6')}>
               <div className="flex items-center justify-between gap-4">
                 <CardTitle className="text-sm font-bold tracking-wide text-foreground">
                   SOAP Clinical Notes Editor
@@ -489,12 +516,12 @@ export default function SessionDetailPage() {
                 </TabsList>
               </Tabs>
             </CardHeader>
-            <CardContent className="p-6 flex-1 flex flex-col gap-5 select-none justify-between">
+            <CardContent className={cn('flex-1 flex flex-col select-none justify-between', isCompact ? 'p-4 gap-3.5' : 'p-6 gap-5')}>
               
-              <div className="flex-1 flex flex-col gap-4">
+              <div className={cn('flex-1 flex flex-col', isCompact ? 'gap-3' : 'gap-4')}>
                 
                 {soapTab === 'subjective' && (
-                  <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div className={cn('flex flex-col animate-in fade-in duration-200', isCompact ? 'gap-3' : 'gap-4')}>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Presenting Complaint
@@ -504,7 +531,10 @@ export default function SessionDetailPage() {
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, presenting_complaint: e.target.value })}
                         placeholder="Enter the patient's subjective symptoms and history..."
-                        className="w-full h-24 text-xs font-semibold p-3.5 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed"
+                        className={cn(
+                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
+                        )}
                       />
                     </div>
                     
@@ -517,11 +547,14 @@ export default function SessionDetailPage() {
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setSymptomsText(e.target.value)}
                         placeholder="e.g. fatigue, insomnia, anxiety..."
-                        className="w-full h-12 text-xs font-semibold p-3.5 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed"
+                        className={cn(
+                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          isCompact ? 'h-10 p-2.5' : 'h-12 p-3.5'
+                        )}
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className={cn('grid grid-cols-2', isCompact ? 'gap-3' : 'gap-4')}>
                       <div className="flex flex-col gap-1.5">
                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mood words</label>
                         <input
@@ -529,7 +562,10 @@ export default function SessionDetailPage() {
                           disabled={isNoteFinalized || isLoading}
                           onChange={(e) => setNoteState({ ...noteState, mood_in_patient_words: e.target.value })}
                           type="text"
-                          className="w-full text-xs font-semibold p-3 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text"
+                          className={cn(
+                            'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text transition-all duration-200',
+                            isCompact ? 'p-2' : 'p-3'
+                          )}
                           placeholder="Patient's words..."
                         />
                       </div>
@@ -540,7 +576,10 @@ export default function SessionDetailPage() {
                           disabled={isNoteFinalized || isLoading}
                           onChange={(e) => setNoteState({ ...noteState, sleep: e.target.value })}
                           type="text"
-                          className="w-full text-xs font-semibold p-3 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text"
+                          className={cn(
+                            'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text transition-all duration-200',
+                            isCompact ? 'p-2' : 'p-3'
+                          )}
                           placeholder="Sleep duration/quality..."
                         />
                       </div>
@@ -553,7 +592,10 @@ export default function SessionDetailPage() {
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, social_context: e.target.value })}
                         type="text"
-                        className="w-full text-xs font-semibold p-3 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text"
+                        className={cn(
+                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text transition-all duration-200',
+                          isCompact ? 'p-2' : 'p-3'
+                        )}
                         placeholder="Work pressure, support..."
                       />
                     </div>
@@ -561,7 +603,7 @@ export default function SessionDetailPage() {
                 )}
 
                 {soapTab === 'objective' && (
-                  <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col animate-in fade-in duration-200">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Medications Mentioned (Comma separated)
@@ -571,14 +613,17 @@ export default function SessionDetailPage() {
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setMedicationsText(e.target.value)}
                         placeholder="e.g. Sertraline 50mg, Ibuprofen..."
-                        className="w-full h-24 text-xs font-semibold p-3.5 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed"
+                        className={cn(
+                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
+                        )}
                       />
                     </div>
                   </div>
                 )}
 
                 {soapTab === 'assessment' && (
-                  <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div className={cn('flex flex-col animate-in fade-in duration-200', isCompact ? 'gap-3' : 'gap-4')}>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Clinical Assessment Flags
@@ -588,7 +633,10 @@ export default function SessionDetailPage() {
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, flags_for_review: e.target.value })}
                         placeholder="Review flags and diagnostic summaries..."
-                        className="w-full h-24 text-xs font-semibold p-3.5 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed"
+                        className={cn(
+                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
+                        )}
                       />
                     </div>
 
@@ -600,14 +648,17 @@ export default function SessionDetailPage() {
                         value={noteState.confidence || 'unknown'}
                         disabled
                         type="text"
-                        className="w-full text-xs font-bold p-3 rounded-xl border border-white/[0.06] bg-black/10 text-[#508a7b] capitalize select-none cursor-not-allowed opacity-80"
+                        className={cn(
+                          'w-full text-xs font-bold rounded-xl border border-white/[0.06] bg-black/10 text-[#508a7b] capitalize select-none cursor-not-allowed opacity-80 transition-all duration-200',
+                          isCompact ? 'p-2' : 'p-3'
+                        )}
                       />
                     </div>
                   </div>
                 )}
 
                 {soapTab === 'plan' && (
-                  <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+                  <div className="flex flex-col animate-in fade-in duration-200">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                         Clinical Treatment Plan
@@ -617,7 +668,10 @@ export default function SessionDetailPage() {
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, plan_discussed: e.target.value })}
                         placeholder="Discussed therapy routines, medications adjustments, and follow-ups..."
-                        className="w-full h-32 text-xs font-semibold p-3.5 rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed"
+                        className={cn(
+                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          isCompact ? 'h-24 p-2.5' : 'h-32 p-3.5'
+                        )}
                       />
                     </div>
                   </div>
@@ -631,7 +685,10 @@ export default function SessionDetailPage() {
                   type="button"
                   onClick={handleSaveNote}
                   disabled={saveNoteMutation.isPending}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50 select-none mt-4"
+                  className={cn(
+                    'w-full inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50 select-none',
+                    isCompact ? 'px-3 py-1.5 mt-3' : 'px-4 py-2.5 mt-4'
+                  )}
                 >
                   <CheckCircle2 className="h-4 w-4 fill-current animate-pulse" />
                   {saveNoteMutation.isPending ? 'Finalizing Notes...' : 'Save & Finalize Note'}

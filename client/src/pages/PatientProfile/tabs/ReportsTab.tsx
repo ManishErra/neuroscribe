@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import EmptyState from '@/components/common/EmptyState';
 import { formatDate as displayDate } from '@/utils/formatters';
+import { useSettings } from '@/store/SettingsContext';
 import { 
   FileText, 
   UploadCloud, 
@@ -29,6 +30,8 @@ import { cn } from '@/lib/utils';
 
 export default function ReportsTab() {
   const { patientId } = useParams<{ patientId: string }>();
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
   
   // Queries
   const { data: reports, isLoading: isReportsLoading, isError: isReportsError } = useReports(patientId);
@@ -119,17 +122,16 @@ export default function ReportsTab() {
   // Static download link helper
   const handleDownload = () => {
     if (selectedReport?.file_path) {
-      // Points to FastAPI static static routes mapping
       const absoluteUrl = `http://localhost:8000/${selectedReport.file_path}`;
       window.open(absoluteUrl, '_blank');
     }
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 select-none animate-in fade-in duration-300">
+    <div className={cn('grid grid-cols-1 xl:grid-cols-12 select-none animate-in fade-in duration-300 transition-all duration-200', isCompact ? 'gap-4' : 'gap-6')}>
       
       {/* ── Left Sidebar: Upload Ingest & History List ───────────── */}
-      <div className="xl:col-span-5 flex flex-col gap-6">
+      <div className={cn('xl:col-span-5 flex flex-col', isCompact ? 'gap-4' : 'gap-6')}>
         
         {/* Drag and Drop Ingest Zone */}
         <Card 
@@ -151,7 +153,7 @@ export default function ReportsTab() {
             className="hidden" 
             accept=".pdf,.png,.jpg,.jpeg"
           />
-          <CardContent className="p-6 flex flex-col items-center justify-center gap-3 text-center min-h-[140px]">
+          <CardContent className={cn('flex flex-col items-center justify-center text-center transition-all duration-200', isCompact ? 'p-4 gap-2.5 min-h-[100px]' : 'p-6 gap-3 min-h-[140px]')}>
             <div className={cn(
               "h-10 w-10 rounded-xl flex items-center justify-center border transition-colors shrink-0",
               isDragOver 
@@ -173,13 +175,13 @@ export default function ReportsTab() {
         </Card>
 
         {/* Diagnostic Reports Listing */}
-        <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl flex-1 flex flex-col overflow-hidden min-h-[360px]">
-          <CardHeader className="border-b border-white/[0.06] py-4 select-none">
+        <Card className={cn('border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl flex-1 flex flex-col overflow-hidden transition-all duration-200', isCompact ? 'min-h-[260px]' : 'min-h-[360px]')}>
+          <CardHeader className={cn('border-b border-white/[0.06]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
             <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               Clinical Report Archive
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-0 flex-1 overflow-y-auto max-h-[500px]">
+          <CardContent className={cn('p-0 flex-1 overflow-y-auto transition-all duration-200', isCompact ? 'max-h-[360px]' : 'max-h-[500px]')}>
             
             {isReportsLoading ? (
               <div className="p-4 space-y-4">
@@ -215,8 +217,9 @@ export default function ReportsTab() {
                       key={report.id}
                       onClick={() => setSelectedReportId(report.id)}
                       className={cn(
-                        "group p-4 border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer flex items-center justify-between gap-4 transition-all relative select-none",
-                        isSelected && "bg-[#508a7b]/5 border-l-2 border-l-[#508a7b]"
+                        "group border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer flex items-center justify-between gap-4 transition-all relative select-none",
+                        isSelected && "bg-[#508a7b]/5 border-l-2 border-l-[#508a7b]",
+                        isCompact ? "p-3" : "p-4"
                       )}
                     >
                       <div className="flex items-center gap-3 min-w-0">
@@ -271,10 +274,10 @@ export default function ReportsTab() {
       </div>
 
       {/* ── Right Workspace Column: Details Panel ───────────────── */}
-      <div className="xl:col-span-7 flex flex-col gap-6">
+      <div className={cn('xl:col-span-7 flex flex-col', isCompact ? 'gap-4' : 'gap-6')}>
         
         {!selectedReportId ? (
-          <Card className="border border-white/[0.06] bg-slate-900/40 p-8 rounded-2xl select-none flex flex-col items-center justify-center text-center min-h-[500px] flex-1 relative overflow-hidden">
+          <Card className={cn('border border-white/[0.06] bg-slate-900/40 rounded-2xl select-none flex flex-col items-center justify-center text-center flex-1 relative overflow-hidden transition-all duration-200', isCompact ? 'p-6 min-h-[360px]' : 'p-8 min-h-[500px]')}>
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#508a7b]/5 rounded-full blur-3xl pointer-events-none" />
             <div className="h-12 w-12 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center text-muted-foreground/40 mb-4 shrink-0">
               <Search className="h-6 w-6" />
@@ -285,10 +288,10 @@ export default function ReportsTab() {
             </p>
           </Card>
         ) : (
-          <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden flex-1 flex flex-col min-h-[500px]">
+          <Card className={cn('border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden flex-1 flex flex-col transition-all duration-200', isCompact ? 'min-h-[360px]' : 'min-h-[500px]')}>
             
             {isDetailLoading ? (
-              <div className="p-6 space-y-6 flex-1 select-none">
+              <div className={cn('space-y-6 flex-1 select-none', isCompact ? 'p-4' : 'p-6')}>
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-2 flex-1">
                     <Skeleton className="h-5 w-1/3 animate-pulse" />
@@ -303,7 +306,7 @@ export default function ReportsTab() {
               <div className="flex flex-col flex-1 select-none animate-in fade-in duration-200">
                 
                 {/* Detailed Header Block */}
-                <div className="p-6 border-b border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">
+                <div className={cn('border-b border-white/[0.06] flex flex-col md:flex-row md:items-center justify-between select-none', isCompact ? 'p-4 gap-3' : 'p-6 gap-4')}>
                   
                   <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2.5">
@@ -362,7 +365,7 @@ export default function ReportsTab() {
                 </div>
 
                 {/* Sub-Tabs selector */}
-                <div className="px-6 py-3 border-b border-white/[0.06] bg-white/[0.01] select-none flex items-center gap-2">
+                <div className={cn('border-b border-white/[0.06] bg-white/[0.01] select-none flex items-center', isCompact ? 'px-4 py-2 gap-1.5' : 'px-6 py-3 gap-2')}>
                   <button
                     type="button"
                     onClick={() => setDetailTab('text')}
@@ -402,11 +405,11 @@ export default function ReportsTab() {
                 </div>
 
                 {/* Main Workspace Body */}
-                <div className="p-6 flex-1 flex flex-col justify-between select-none">
+                <div className={cn('flex-1 flex flex-col justify-between select-none', isCompact ? 'p-4' : 'p-6')}>
                   
                   {/* Tab 1: Monospace Parsed text */}
                   {detailTab === 'text' && (
-                    <div className="flex-1 flex flex-col gap-4 animate-in fade-in duration-200">
+                    <div className={cn('flex-1 flex flex-col animate-in fade-in duration-200', isCompact ? 'gap-3' : 'gap-4')}>
                       
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -425,7 +428,7 @@ export default function ReportsTab() {
                         )}
                       </div>
 
-                      <div className="flex-1 min-h-[300px] max-h-[460px] overflow-y-auto rounded-2xl border border-white/[0.04] bg-black/10 p-4 relative select-text leading-relaxed">
+                      <div className={cn('flex-1 overflow-y-auto rounded-2xl border border-white/[0.04] bg-black/10 p-4 relative select-text leading-relaxed transition-all duration-200', isCompact ? 'min-h-[200px] max-h-[340px]' : 'min-h-[300px] max-h-[460px]')}>
                         {selectedReport?.ocr_status === 'pending' ? (
                           <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-muted-foreground italic text-center p-6 select-none">
                             OCR text data has not been extracted yet. Click "Run OCR Ingestion" in the header to process.
@@ -456,7 +459,7 @@ export default function ReportsTab() {
                   {detailTab === 'labs' && (
                     <div className="flex-1 flex flex-col justify-center animate-in fade-in duration-200">
                       
-                      <Card className="border border-white/[0.06] bg-slate-900/60 p-6 rounded-2xl select-none max-w-lg mx-auto w-full relative overflow-hidden shadow-lg">
+                      <Card className={cn('border border-white/[0.06] bg-slate-900/60 rounded-2xl select-none max-w-lg mx-auto w-full relative overflow-hidden shadow-lg', isCompact ? 'p-4' : 'p-6')}>
                         <div className="absolute top-0 right-0 w-24 h-24 bg-[#508a7b]/5 rounded-full blur-2xl pointer-events-none" />
                         
                         <CardHeader className="p-0 mb-4 pb-4 border-b border-white/[0.04] flex flex-row items-center gap-3 select-none">

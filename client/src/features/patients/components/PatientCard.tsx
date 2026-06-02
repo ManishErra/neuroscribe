@@ -7,6 +7,8 @@ import { StatusBadge } from '@/components/common/StatusBadge';
 import { formatDate } from '@/utils/formatters';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ArrowRight, User } from 'lucide-react';
+import { useSettings } from '@/store/SettingsContext';
+import { cn } from '@/lib/utils';
 
 interface PatientCardProps {
   patient: Patient;
@@ -33,13 +35,15 @@ function getDeterministicStatus(patient: Patient): 'STABLE' | 'WARNING' | 'CRITI
 
 export default function PatientCard({ patient }: PatientCardProps) {
   const status = getDeterministicStatus(patient);
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
 
   return (
-    <Card className="bg-card/40 border-border hover:border-primary/30 hover:bg-card/60 transition-all duration-200 flex flex-col group select-none shadow-sm h-full">
-      <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
+    <Card className={cn('bg-card/40 border-border hover:border-primary/30 hover:bg-card/60 transition-all duration-200 flex flex-col group select-none shadow-sm h-full', isCompact ? 'p-0' : '')}>
+      <CardHeader className={cn('flex flex-row items-start justify-between gap-3', isCompact ? 'pb-2' : 'pb-3')}>
         {/* Name and badge */}
         <div className="space-y-1 truncate">
-          <h3 className="font-bold text-base text-foreground tracking-tight truncate group-hover:text-primary transition-colors">
+          <h3 className={cn('font-bold text-foreground tracking-tight truncate group-hover:text-primary transition-colors', isCompact ? 'text-sm' : 'text-base')}>
             {patient.name}
           </h3>
           <p className="text-[11px] text-muted-foreground leading-normal font-medium">
@@ -51,9 +55,9 @@ export default function PatientCard({ patient }: PatientCardProps) {
         <StatusBadge status={status} className="shrink-0" />
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col justify-between pt-0 gap-4">
+      <CardContent className={cn('flex-1 flex flex-col justify-between pt-0', isCompact ? 'gap-2.5' : 'gap-4')}>
         {/* Patient specs */}
-        <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-muted/30 border border-border/40 w-fit">
+        <div className={cn('flex items-center rounded-lg bg-muted/30 border border-border/40 w-fit', isCompact ? 'py-1 px-2 gap-1.5' : 'py-2 px-3 gap-3')}>
           <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs font-semibold text-foreground">
             {patient.age} yrs <span className="mx-1 opacity-40">·</span> {patient.gender}
@@ -63,7 +67,7 @@ export default function PatientCard({ patient }: PatientCardProps) {
         {/* View Profile direct Link */}
         <Link
           to={`/patients/${patient.id}/overview`}
-          className="flex items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground group/link transition-colors border-t border-border/60 pt-3 mt-1"
+          className={cn('flex items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground group/link transition-colors border-t border-border/60', isCompact ? 'pt-2 mt-0.5' : 'pt-3 mt-1')}
         >
           <span>View Patient Profile</span>
           <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover/link:translate-x-1 shrink-0" />

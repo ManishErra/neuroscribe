@@ -32,4 +32,7 @@ export const PAGE_TITLES = {
   timeline:      'Lab Timeline — NeuroScribe',
   search:        'Semantic Search — NeuroScribe',
   login:         'Sign In — NeuroScribe',
+  settings:      'Settings — NeuroScribe',
 } as const;
+
+export const AI_ENGINE_LABEL = 'Groq · LLaMA (AI Engine)' as const;

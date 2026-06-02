@@ -9,6 +9,8 @@ import EmptyState from '@/components/common/EmptyState';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { useSettings } from '@/store/SettingsContext';
+import { cn } from '@/lib/utils';
 import {
   Search,
   Users,
@@ -37,6 +39,8 @@ function getDeterministicStatus(patient: Patient): 'STABLE' | 'WARNING' | 'CRITI
 
 export default function PatientDirectoryPage() {
   const { data: patients, isLoading, isError } = usePatients();
+  const { settings } = useSettings();
+  const isCompact = settings.density === 'compact';
 
   // Local filtering & pagination state
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,16 +103,24 @@ export default function PatientDirectoryPage() {
   };
 
   return (
-    <div id="patient-directory-page" className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div
+      id="patient-directory-page"
+      className={cn(
+        'max-w-7xl mx-auto transition-all duration-200',
+        isCompact ? 'p-4 space-y-4' : 'p-6 space-y-6'
+      )}
+    >
       {/* ── Page Header ────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-5">
+      <div className={cn('flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border', isCompact ? 'pb-3' : 'pb-5')}>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Patient Directory</h1>
+          <h1 className={cn('font-bold tracking-tight text-foreground', isCompact ? 'text-xl' : 'text-2xl')}>
+            Patient Directory
+          </h1>
           <p className="text-xs text-muted-foreground mt-1">
             Search, filter, and review active psychiatric patient case indexes.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border px-3 py-1.5 rounded-xl select-none">
+        <div className={cn('flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-xl select-none', isCompact ? 'px-2 py-1' : 'px-3 py-1.5')}>
           <Users className="h-4 w-4 text-primary shrink-0" />
           <span className="font-semibold text-foreground">
             {filteredAndSortedPatients.length} of {patients?.length || 0} Patients Listed
@@ -117,7 +129,7 @@ export default function PatientDirectoryPage() {
       </div>
 
       {/* ── 1. Advanced Search and Filters Panel ───────────────── */}
-      <div className="bg-card/20 border border-border p-4 rounded-2xl flex flex-col gap-4 select-none">
+      <div className={cn('bg-card/20 border border-border rounded-2xl flex flex-col select-none', isCompact ? 'p-3 gap-3' : 'p-4 gap-4')}>
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
           {/* Search box input */}
           <div className="relative w-full md:max-w-xs">
@@ -170,7 +182,7 @@ export default function PatientDirectoryPage() {
         </div>
 
         {/* Clinical Status Filters button deck */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/40 text-xs">
+        <div className={cn('flex flex-wrap items-center gap-1.5 border-t border-border/40 text-xs', isCompact ? 'pt-1.5' : 'pt-2')}>
           <span className="text-muted-foreground font-semibold mr-1.5 uppercase tracking-wider text-[10px]">
             Clinical Status:
           </span>
@@ -194,9 +206,9 @@ export default function PatientDirectoryPage() {
       {/* ── 2. Patient Cards Grid ──────────────────────────────── */}
       {isLoading ? (
         // Grid Loading Skeleton State
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3', isCompact ? 'gap-4' : 'gap-6')}>
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="bg-card/40 border border-border p-5 space-y-4 rounded-2xl">
+            <Card key={i} className={cn('bg-card/40 border border-border rounded-2xl', isCompact ? 'p-4 space-y-3' : 'p-5 space-y-4')}>
               <div className="flex justify-between items-center gap-3">
                 <div className="space-y-2 flex-1">
                   <Skeleton className="h-5 w-32 rounded" />
@@ -205,7 +217,7 @@ export default function PatientDirectoryPage() {
                 <Skeleton className="h-5 w-16 rounded-full" />
               </div>
               <Skeleton className="h-8 w-24 rounded-lg" />
-              <div className="border-t border-border/60 pt-3 flex justify-between">
+              <div className={cn('border-t border-border/60 flex justify-between', isCompact ? 'pt-2' : 'pt-3')}>
                 <Skeleton className="h-3.5 w-28 rounded" />
                 <Skeleton className="h-3.5 w-4 rounded" />
               </div>
@@ -230,7 +242,7 @@ export default function PatientDirectoryPage() {
         />
       ) : (
         // Render Paginated Cards Grid
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className={cn('grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3', isCompact ? 'gap-4' : 'gap-6')}>
           {paginatedPatients.map((patient) => (
             <PatientCard key={patient.id} patient={patient} />
           ))}
@@ -239,7 +251,7 @@ export default function PatientDirectoryPage() {
 
       {/* ── 3. Client-Side Pagination Toolbar ──────────────────── */}
       {!isLoading && !isError && filteredAndSortedPatients.length > 0 && (
-        <div className="flex items-center justify-between border-t border-border pt-4 select-none">
+        <div className={cn('flex items-center justify-between border-t border-border select-none', isCompact ? 'pt-3' : 'pt-4')}>
           {/* Index metrics */}
           <span className="text-xs text-muted-foreground font-medium">
             Showing{' '}

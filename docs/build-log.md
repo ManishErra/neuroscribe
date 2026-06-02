@@ -1782,5 +1782,55 @@ Status:
 ✅ Premium clinical placeholder cards styled
 ✅ ESLint & TypeScript compile 100% clean
 
+---
+
+# Day 31 — Settings Dashboard & Layout Density Mode
+
+## Goal
+Build the unified clinical settings dashboard (`/settings` route) establishing theme modes (Dark fully supported, Light/System visually disabled), AI engine toggles (ambient configuration and RAG controls), user account identity summaries, and layout density control (Standard vs. Compact) implemented entirely via React state and Tailwind utility classes across 10 main components.
+
+## Technical Decisions & Implementations
+- **Settings Context (`SettingsContext.tsx`):**
+  - Standalone React context syncing theme, density, AI engine switches, and notification preferences with `localStorage`.
+  - Enforces `theme: 'dark'` as the only writable value, and toggles the `dark` class on `document.documentElement` dynamically.
+  - Implements targeted key removal (`ns_theme`, `ns_density`, `ns_ai_config`, `ns_notifications`) on preferences reset, safeguarding other token stores (e.g. auth and query caches).
+- **Settings Dashboard (`SettingsPage.tsx`):**
+  - Divided into 5 visual decks: Appearance, AI Engine, Notifications, Account Details, and Danger Zone.
+  - Sourced from mock user data (`AuthContext`), specialty parameters ("Psychiatry"), and read-only AI Model label constant (`AI_ENGINE_LABEL`).
+  - Restricted disabled options (Light/System themes, Change Password button) wrapped in tooltips and locks in compliance with design system guidelines.
+- **Pure React/Tailwind Layout Density:**
+  - Implemented `isCompact` state using `useSettings()` context hook.
+  - Injected conditional styling using class composition (`cn()`) instead of `.density-compact` global CSS selector overrides.
+  - Compact Spacing modifications:
+    - *Sidebar:* narrows width from 16rem to 13rem; reduces padding and font sizes.
+    - *TopBar:* drops header height from 14 (56px) to 11 (44px) and shrinks horizontal padding.
+    - *Pages (Dashboard, Patient Directory, Patient Profile):* compresses page paddings, card spacing, and table cell row heights (py-3.5 to py-2).
+    - *Details Panel (Session Detail Workspace, Reports Tab):* dynamically drops transcript viewport scroll containers, audio waveform elements, textareas, and action buttons heights by ~25% for high-density information displays.
+
+## Validation Performed
+- **Automated Verification:** `npm run lint` and `npm run build` completed successfully with **0 errors and 0 warnings** in the output log.
+- **Instant Density Rendering:** Toggling density mode compresses the outer structural shells and inner data grids immediately without requiring a full page refresh.
+
+Status:
+✅ Settings Context and `/settings` route registered
+✅ 5-part Settings Dashboard implemented
+✅ Pure React + Tailwind Layout Density mode implemented across 10 main components
+✅ Visually disabled future theme and authentication paths
+✅ ESLint & TypeScript build compiles 100% clean
+
+---
+
+## Technical Debt Note
+
+### 1. Light Theme Deferred
+- **Status:** Deferred (Day 31)
+- **Context:** At least 5 pages (`SessionDetailPage`, `ReportsTab`, `OverviewTab`, `SessionsTab`, `PatientProfilePage`) have hardcoded dark-glass color utility classes (`bg-slate-900/40`, `border-white/[0.06]`, etc.) and no `dark:` prefix variants.
+- **Resolution:** Migrate hardcoded dark elements to semantic CSS variables in `index.css` before enabling the Light or System theme.
+
+### 2. Password Management Deferred
+- **Status:** Deferred (Day 31)
+- **Context:** No backend endpoint exists for user password changes. The Change Password button is visually disabled.
+- **Resolution:** Build `POST /auth/change-password` endpoint in the FastAPI backend and wire it to a functional modal on the settings page.
+
 
 

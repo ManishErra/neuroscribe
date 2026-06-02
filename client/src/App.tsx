@@ -16,6 +16,7 @@ import OverviewTab from '@/pages/PatientProfile/tabs/OverviewTab';
 import SessionsTab from '@/pages/PatientProfile/tabs/SessionsTab';
 import ReportsTab from '@/pages/PatientProfile/tabs/ReportsTab';
 import SessionDetailPage from '@/pages/SessionDetail/SessionDetailPage';
+import SettingsPage from '@/pages/Settings/SettingsPage';
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
 // ── Phase 2–6 stubs ──────────────────────────────────────────────────────────
@@ -99,6 +100,16 @@ const router = createBrowserRouter([
         element: (
           <ErrorBoundary>
             <ComingSoon label="Semantic Search" />
+          </ErrorBoundary>
+        ),
+      },
+
+      // Settings (Day 31)
+      {
+        path: 'settings',
+        element: (
+          <ErrorBoundary>
+            <SettingsPage />
           </ErrorBoundary>
         ),
       },
