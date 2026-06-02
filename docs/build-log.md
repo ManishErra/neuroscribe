@@ -1684,3 +1684,13 @@ Status:
   * `last_activity`
   * `latest_labs`
   At that point, `StatusBadge` must bind directly to the returned backend `clinical_status` payload field and the `getDeterministicStatus` name-hashing code block inside [PatientCard.tsx](file:///c:/Users/Manish/AI-Projects/neuroscribe/client/src/features/patients/components/PatientCard.tsx) must be deleted.
+
+### 2. Patient Profile Header Blood Group Placeholder
+- **Debt Context:** The Blood Group displayed as "Blood A+" in the patient profile header subtext is a hardcoded placeholder generated entirely client-side.
+- **Clinical Integration Gap:** The database model `Patient` and the endpoint `GET /patients/{id}` do not support or return a patient blood group.
+- **Future Action & Resolution:** Once a blood group column is added to the database schema, Pydantic response models, and the `GET /patients/{id}` response payload, this client-side override must be removed and replaced.
+- **Target Contract Spec:**
+  `GET /patients/{id}` should eventually return:
+  * `blood_group`
+  At that point, `PatientProfilePage` must bind directly to the returned backend `blood_group` property and the static `"Blood A+"` literal inside [PatientProfilePage.tsx](file:///c:/Users/Manish/AI-Projects/neuroscribe/client/src/pages/PatientProfile/PatientProfilePage.tsx) must be deleted.
+

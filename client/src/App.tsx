@@ -11,6 +11,8 @@ import PageShell from '@/components/layout/PageShell';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import DashboardPage from '@/pages/Dashboard/DashboardPage';
 import PatientDirectoryPage from '@/pages/PatientDirectory/PatientDirectoryPage';
+import PatientProfilePage from '@/pages/PatientProfile/PatientProfilePage';
+import OverviewTab from '@/pages/PatientProfile/tabs/OverviewTab';
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
 // ── Phase 2–6 stubs ──────────────────────────────────────────────────────────
@@ -65,12 +67,12 @@ const router = createBrowserRouter([
         path: 'patients/:patientId',
         element: (
           <ErrorBoundary>
-            <ComingSoon label="Patient Profile" />
+            <PatientProfilePage />
           </ErrorBoundary>
         ),
         children: [
           { index: true,          element: <Navigate to="overview" replace /> },
-          { path: 'overview',     element: <ComingSoon label="Overview Tab" /> },
+          { path: 'overview',     element: <OverviewTab /> },
           { path: 'sessions',     element: <ComingSoon label="Sessions Tab" /> },
           { path: 'reports',      element: <ComingSoon label="Reports Tab" /> },
           { path: 'insights',     element: <ComingSoon label="Insights Tab" /> },
