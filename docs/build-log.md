@@ -1341,6 +1341,49 @@ The platform can now:
 
 Status:
 
+Base-log state:
 ✅ Day 22 Complete
 ✅ Production Verified
 ✅ Regression Safe
+
+---
+
+# Day 25 — Phase 1 Frontend Foundation
+
+## Goal
+Scaffold and establish the production-ready Single Page Application (SPA) frontend foundation in a new `client/` directory, while preserving the existing Next.js `frontend/` project untouched as a reference implementation. Implement Phase 1 from `frontend_architecture.md` — introducing Vite, React 19, TypeScript, TailwindCSS v3, shadcn/ui, TanStack Query, Axios, and React Router v7, with zero-compile and zero-lint errors.
+
+## Tech Decisions & Dependencies
+- **Core Framework:** React 19 + Vite (for high-speed client-side HMR, ESM bundling, and zero-SSR simplicity).
+- **Language Layer:** TypeScript (provides full static typing, interface contracts, and schema validation over all stubs).
+- **Styling Utility:** TailwindCSS v3 (pinned to `@3` to preserve compatibility with shadcn/ui’s CSS variables architecture) + `@fontsource/inter` typeface.
+- **Component Library:** shadcn/ui initialized over `@base-ui/react` primitives (base-nova theme).
+- **State Management:** TanStack Query v5 (`@tanstack/react-query`) for unified query caching and invalidation; Context + `useReducer` for global UI-only state (breadcrumbs, toasts, selected patient).
+- **Routing Engine:** React Router v7 (`react-router-dom`) with a declarative 12-route nested structure wrapped in standard `ProtectedRoute` and `ErrorBoundary` components.
+- **API Transport:** Axios client with automated Bearer token attachment and `401 Unauthorized` redirect routing.
+
+## Files Created / Added
+- `client/` Vite TypeScript scaffold
+- `client/tailwind.config.js` and `client/src/index.css` (custom dark mode, status colors, custom variables)
+- `client/.env`, `client/.env.example`, `client/.env.production`
+- `client/src/api/axiosClient.ts`
+- `client/src/utils/constants.ts` (Registry for `QUERY_KEYS`), `formatters.ts`, `statusColors.ts`
+- `client/src/store/AppContext.tsx`, `appReducer.ts`, `actions.ts`
+- `client/src/auth/AuthContext.tsx`, `useAuth.ts`, `ProtectedRoute.tsx`, `authService.ts`, `LoginPage.tsx`
+- `client/src/components/common/Spinner.tsx`, `EmptyState.tsx`, `ErrorBoundary.tsx`
+- `client/src/components/layout/Sidebar.tsx`, `TopBar.tsx`, `PageShell.tsx`
+- `client/src/pages/Dashboard/DashboardPage.tsx`, `NotFound/NotFoundPage.tsx`
+- `client/src/App.tsx` (Route tree with nested sub-tabs for PatientProfile, SessionDetail, and Search Page)
+- `client/src/main.tsx` (Outermost providers order setup)
+
+## Validation Performed
+- **Automated Dependency Auditing:** `npm install` runs cleanly with 0 package vulnerabilities.
+- **TypeScript Static Verification:** `tsc -b` compiles the entire codebase with zero errors.
+- **Linter Cleanliness:** ESLint run (`eslint .`) finishes with zero warnings or errors.
+- **Vite Production Bundler:** `npm run build` completes in 1.46s, generating a fully-treeshaken optimal asset pack.
+- **Local Dev Verification:** Vite server booted and listening on port `5173`. Programmatic route requests to `/`, `/login`, `/search`, and `/xyz` serve successfully with HTTP `200` OK.
+
+Status:
+✅ Phase 1 Project Foundation Completed
+✅ ESLint & TypeScript Clean
+✅ Production Verified
