@@ -1387,3 +1387,52 @@ Status:
 ✅ Phase 1 Project Foundation Completed
 ✅ ESLint & TypeScript Clean
 ✅ Production Verified
+
+Day 26 Start.
+
+# Day 26 — Layout & Dashboard Implementation
+
+## Goal
+Implement the dynamic app framework shell (PageShell, Sidebar, and TopBar) and build out the production-grade read-only Clinical Dashboard (DashboardPage) mapping to `frontend_architecture.md` parameters. Ensure Vite runs on port `5173`, resolve CORS origins in the backend API directly, and construct polished metrics widgets, activities, navigation links, and dynamic tables using parallel TanStack queries with zero linter errors.
+
+## Tech Decisions & Implementations
+- **Backend CORS Alignment:** Added `"http://localhost:5173"` to FastAPI's CORS whitelisted origins list, enabling clean cross-origin HTTP handshakes without modifying Vite defaults.
+- **Component Layout Shells:**
+  - **`PageShell.tsx`**: Wired up as the persistent parent frame. Houses a dynamic floating Toast notification system (`toasts` array) triggered by global actions.
+  - **`Sidebar.tsx`**: Integrates a live TanStack Query hook (`usePatients()`) to dynamically list all patient micro-cards, featuring pulsing skeletons while loading, and automatic route highlighting.
+  - **`TopBar.tsx`**: Translates routing structures to static breadcrumb markers (Dashboard, Patients, Search, Settings) and features a dynamic live calendar date banner and a `/` hotkey event listener to trigger search pages.
+- **Common Primitives:**
+  - **`StatusBadge.tsx`**: Premium, border-styled badge component that maps statuses ('STABLE', 'WARNING', 'CRITICAL') to emerald, amber, and rose themes with subtle blinking indicator dots.
+- **Service & Hooks Integration:**
+  - **`patients.service.ts`** + hooks (`usePatients`, `usePatient`): Fetches patient listing directory and patient lookups.
+  - **`insights.service.ts`** + hook (`usePatientOverview`): Queries the `/patient-overview/{id}` backend endpoint to fetch high-level patient alerts, extracted labs, and recent timestamps.
+- **Clinical Dashboard (`DashboardPage.tsx`):**
+  - *Metrics Grid*: Renders statistics cards for Total Patients (live), Critical alerts (live filter), Finalized Sessions (14), and Processed Reports (8).
+  - *Quick Actions Panel*: Serves as hover cards triggering nav events or global toast overlays.
+  - *Recent Activity Feed*: Renders a timeline of diagnostic uploads and transcript finalizations.
+  - *Read-Only Patient Table*: Displays all clinic patient records inside a structured shadcn `Table` with live statuses and lab extractions.
+
+## Files Created / Added
+- `client/src/features/patients/services/patients.service.ts`
+- `client/src/features/patients/hooks/usePatients.ts`
+- `client/src/features/patients/hooks/usePatient.ts`
+- `client/src/features/insights/services/insights.service.ts`
+- `client/src/features/insights/hooks/usePatientOverview.ts`
+- `client/src/components/common/StatusBadge.tsx`
+
+## Files Modified
+- `backend/main.py` (CORS origin whitelist whitelisting `5173`)
+- `client/src/components/layout/PageShell.tsx` (Integrated float toasts stack)
+- `client/src/components/layout/Sidebar.tsx` (Dynamic patient listings)
+- `client/src/components/layout/TopBar.tsx` (Breadcrumb simplification & "/" keyboard hotkeys)
+- `client/src/pages/Dashboard/DashboardPage.tsx` (Dynamic metrics, activities, and patient tables)
+
+## Validation Performed
+- **ESLint & TS Compiles:** `npm run lint` and `npm run build` compile cleanly with **zero warnings or errors**.
+- **Dev Server Performance:** Vite dev server HMR successfully processes updates instantly on port `5173`. Programmatic route requests (/login, /, /search, /xyz) serve successfully with HTTP `200` OK.
+
+Status:
+✅ Layout Persistent Frame Completed
+✅ Dynamic Sidebar and Topbar Navigation Integrated
+✅ Read-only Clinical Dashboard Visualized
+✅ ESLint & TypeScript 100% Clean
