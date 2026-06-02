@@ -86,7 +86,23 @@ export default function Sidebar() {
       </div>
 
       {/* ── Bottom nav links ─────────────────────────────────── */}
-      <div className="border-t border-border px-3 py-3">
+      <div className="border-t border-border px-3 py-3 flex flex-col gap-1">
+        <NavLink
+          to="/patients"
+          id="nav-patients"
+          className={({ isActive }: { isActive: boolean }) =>
+            cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
+              isActive
+                ? 'bg-primary/10 text-primary font-medium shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
+            )
+          }
+        >
+          <Users className="h-4 w-4 shrink-0" />
+          Patient Directory
+        </NavLink>
+
         <NavLink
           to="/search"
           id="nav-search"
@@ -94,7 +110,7 @@ export default function Sidebar() {
             cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors',
               isActive
-                ? 'bg-primary/10 text-primary font-medium'
+                ? 'bg-primary/10 text-primary font-medium shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
             )
           }

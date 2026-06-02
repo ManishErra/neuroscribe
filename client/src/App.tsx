@@ -10,6 +10,7 @@ import LoginPage from '@/auth/LoginPage';
 import PageShell from '@/components/layout/PageShell';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import DashboardPage from '@/pages/Dashboard/DashboardPage';
+import PatientDirectoryPage from '@/pages/PatientDirectory/PatientDirectoryPage';
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
 // ── Phase 2–6 stubs ──────────────────────────────────────────────────────────
@@ -45,6 +46,16 @@ const router = createBrowserRouter([
         element: (
           <ErrorBoundary>
             <DashboardPage />
+          </ErrorBoundary>
+        ),
+      },
+
+      // Patient Directory (Day 27)
+      {
+        path: 'patients',
+        element: (
+          <ErrorBoundary>
+            <PatientDirectoryPage />
           </ErrorBoundary>
         ),
       },
