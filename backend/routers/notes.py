@@ -6,6 +6,7 @@ from sqlalchemy import text as sql_text
 
 from database import get_db
 from models import Note, Transcript
+from auth_utils import get_current_user
 
 from prompts import (
     SYSTEM_PROMPT,
@@ -29,7 +30,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")

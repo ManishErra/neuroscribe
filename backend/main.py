@@ -60,6 +60,11 @@ from patient_insights import (
     router as patient_insights_router
 )
 
+from routers.auth import (
+    router as auth_router
+)
+
+
 
 # =========================================
 # FASTAPI APP
@@ -125,6 +130,9 @@ app.include_router(timeline_router)
 app.include_router(comparison_router)
 
 app.include_router(patient_insights_router)
+
+app.include_router(auth_router)
+
 
 
 # =========================================

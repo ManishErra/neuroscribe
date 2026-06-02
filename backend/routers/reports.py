@@ -19,8 +19,9 @@ from database import get_db
 from models import Patient, Report
 from report_ocr_extract import extract_report_text
 from report_vector_store import add_report_embeddings
+from auth_utils import get_current_user
 
-router = APIRouter(prefix="/reports", tags=["Reports"])
+router = APIRouter(prefix="/reports", tags=["Reports"], dependencies=[Depends(get_current_user)])
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 

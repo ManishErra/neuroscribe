@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session as DBSession
 
 from database import get_db
 from models import Patient
+from auth_utils import get_current_user
 
 import uuid
 
-router = APIRouter(prefix="/patients")
+router = APIRouter(prefix="/patients", dependencies=[Depends(get_current_user)])
 
 
 class PatientCreate(BaseModel):

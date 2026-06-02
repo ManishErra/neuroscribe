@@ -1886,6 +1886,71 @@ Status:
 - **Context:** The production JS bundle size is 661 kB (`index-C1Jii4Cl.js`). Recharts is the largest dependency. Since all pages (Dashboard, PatientProfilePage, SessionDetailPage, SettingsPage, SearchPage) are statically imported in `App.tsx`, they are bundled into a single chunk.
 - **Resolution:** Refactor page imports in `App.tsx` using `React.lazy` and `Suspense` to code-split pages. Placing `PatientProfilePage` (using Recharts) behind a lazy-loading boundary will exclude Recharts from the initial page-load bundle.
 
+---
+
+# Day 33 — Authentication & Security
+
+## Goal
+Implement secure authentication and user management in the backend, supporting password hashing, JWT generation/verification, and user session endpoint validation. This establishes the security foundation necessary to protect patient clinical records.
+
+## Technical Decisions & Implementations
+- **Bcrypt Direct Hashing:**
+  - Used the standard, native `bcrypt` Python library directly for password hashing and verification. This avoids Python 3.13 compatibility bugs and the legacy maintenance risks associated with `passlib`.
+- **Case-Insensitive Email Storage (CITEXT):**
+  - Enabled the `citext` PostgreSQL extension and declared `email CITEXT UNIQUE NOT NULL` on the `users` table to guarantee that email uniqueness is enforced case-insensitively at the database level.
+- **SQL-Based Schema Migrations:**
+  - Added a raw SQL migration file `backend/sql/create_users_table.sql` applied directly against Supabase, consistent with the existing repository database change history.
+- **Email Normalization Guard:**
+  - Enforced `email = email.strip().lower()` during registration and login in the FastAPI router to clean input strings and maintain consistency.
+- **Symmetric HS256 JWT Authorization:**
+  - Configured HS256 JWT tokens with a shift-friendly 8-hour (480 minutes) expiration to support clinical workflows without session interruptions, while keeping refresh tokens out of scope for Day 33.
+
+## Validation Performed
+- **Automated Verification:** `npm run lint` and `npm run build` completed successfully on the client with 0 errors and warnings.
+- **Backend API Tests:** Ran the custom verification suite `backend/scripts/verify_auth.py` covering:
+  - Register new user and enforce casing duplicates rejection (409 Conflict).
+  - Login with correct, mixed-case, and whitespace-padded email addresses.
+  - Reject incorrect credentials with 401 Unauthorized.
+  - Return access token payload including `sub` (UUID), `email`, `name`, and `exp` (Unix seconds).
+  - Extract authenticated user details via `GET /auth/me` and reject invalid/expired tokens with 401.
+
+Status:
+✅ Database `users` table created in Supabase with `citext` email uniqueness.
+✅ Password hashing and verifying utilities implemented.
+✅ JWT creation and extraction dependency `get_current_user` implemented.
+✅ API endpoints `/auth/register`, `/auth/login`, `/auth/me` fully verified.
+✅ Client build and lint pass successfully.
+
+---
+
+# Day 34 — Route Protection & Authorization (Phase A)
+
+## Goal
+Implement route-level security for all exposed patient, session, note, report, search, and insights endpoints. This ensures that only authenticated clients with valid, non-expired JWT tokens can access clinical data, blocking anonymous requests with 401 Unauthorized.
+
+## Technical Decisions & Implementations
+- **Router-Level Dependency Injection:**
+  - Applied `Depends(get_current_user)` as a router-level dependency across all 10 clinical and utility routers. This provides centralized, non-bypassable perimeter protection for all endpoints in those routers without modifying individual endpoint logic.
+- **Non-Bypassable Backend Auth Gating:**
+  - Standardized backend gating by removing developer-bypass mock-user paths. All endpoints require real database accounts and real signed JWTs.
+- **CORS & OPTIONS Preflight Preservation:**
+  - Audited preflight calls, confirming that `CORSMiddleware` intercepts browser `OPTIONS` preflights and returns a `200 OK` before route-level dependencies are evaluated.
+
+## Validation Performed
+- **Automated Verification:** `npm run lint` and `npm run build` completed successfully on the client with 0 errors and 0 warnings.
+- **Matrix Route Auditing:** Ran the integration verification script `backend/scripts/run_day34_verification.py` checking all protected routers:
+  - Verify that requests without a token, with an invalid token, and with an expired token return `401 Unauthorized`.
+  - Verify that requests with a valid token successfully pass the gate and reach the endpoint business logic (returning 200, 404, or 422 depending on parameters).
+  - Verify that `POST /auth/register` and `POST /auth/login` remain public while `/auth/me` is protected.
+
+Status:
+✅ Router-level dependency injection completed for all 10 clinical modules.
+✅ public/private route separation verified (auth endpoints public, clinical endpoints protected).
+✅ Gated clinical routes verified: anonymous, expired, and invalid calls successfully blocked with 401.
+✅ CORS preflight integrity confirmed (preflight OPTIONS requests return 200 OK).
+✅ ESLint & TypeScript compilation pass with 0 errors.
+
+
 
 
 

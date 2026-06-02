@@ -4,8 +4,9 @@ from database import get_db
 from models import Patient, Report
 from clinical_timeline import build_timeline
 from clinical_comparison import generate_comparison
+from auth_utils import get_current_user
 
-router = APIRouter(prefix="/compare", tags=["Comparison"])
+router = APIRouter(prefix="/compare", tags=["Comparison"], dependencies=[Depends(get_current_user)])
 
 @router.get("/{patient_id}")
 def get_patient_comparison(patient_id: str, db: DBSession = Depends(get_db)):

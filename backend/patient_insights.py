@@ -6,8 +6,9 @@ from clinical_timeline import build_timeline, get_report_sorting_date
 from clinical_comparison import generate_comparison
 from clinical_summary import generate_clinical_summary_data
 from clinical_entities import extract_clinical_entities
+from auth_utils import get_current_user
 
-router = APIRouter(tags=["Patient Insights"])
+router = APIRouter(tags=["Patient Insights"], dependencies=[Depends(get_current_user)])
 
 @router.get("/patient-insights/{patient_id}")
 def get_patient_insights(patient_id: str, db: DBSession = Depends(get_db)):

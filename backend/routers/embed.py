@@ -24,11 +24,13 @@ from embeddings import (
     chunk_text
 )
 
+from auth_utils import get_current_user
 import uuid
 import json
 
 router = APIRouter(
-    prefix="/embed"
+    prefix="/embed",
+    dependencies=[Depends(get_current_user)]
 )
 
 # =========================

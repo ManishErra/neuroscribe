@@ -1,5 +1,5 @@
 from sqlalchemy import Column, String, Text, Boolean, Date, DateTime, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, CITEXT
 from sqlalchemy.sql import func
 from database import Base
 import uuid
@@ -85,3 +85,13 @@ class Embedding(Base):
         Date,
         server_default=func.now()
     )
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(CITEXT, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    name = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

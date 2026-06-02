@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session as DBSession
 from database import get_db
 from models import Patient, Report
 from clinical_timeline import build_timeline
+from auth_utils import get_current_user
 
-router = APIRouter(prefix="/timeline", tags=["Timeline"])
+router = APIRouter(prefix="/timeline", tags=["Timeline"], dependencies=[Depends(get_current_user)])
 
 @router.get("/{patient_id}")
 def get_patient_timeline(patient_id: str, db: DBSession = Depends(get_db)):

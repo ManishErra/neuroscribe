@@ -1,14 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 import json
 
 from report_vector_store import search_similar_chunks
 from llm_service import generate_answer
-
+from auth_utils import get_current_user
 
 router = APIRouter(
     prefix="/ask",
     tags=["Ask"],
+    dependencies=[Depends(get_current_user)]
 )
 
 

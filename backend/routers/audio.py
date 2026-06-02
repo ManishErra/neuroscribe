@@ -22,6 +22,7 @@ import os
 import uuid
 
 from dotenv import load_dotenv
+from auth_utils import get_current_user
 
 
 # =========================================
@@ -35,7 +36,7 @@ load_dotenv()
 # ROUTER
 # =========================================
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 # =========================================

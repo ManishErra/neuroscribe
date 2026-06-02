@@ -4,12 +4,13 @@ from sqlalchemy.orm import Session as DBSession
 
 from database import get_db
 from models import Session as SessionModel, Transcript, Note
+from auth_utils import get_current_user
 
 import uuid
 from datetime import date
 import json
 
-router = APIRouter(prefix="/sessions")
+router = APIRouter(prefix="/sessions", dependencies=[Depends(get_current_user)])
 
 
 # GET all sessions for a patient
