@@ -13,6 +13,8 @@ import DashboardPage from '@/pages/Dashboard/DashboardPage';
 import PatientDirectoryPage from '@/pages/PatientDirectory/PatientDirectoryPage';
 import PatientProfilePage from '@/pages/PatientProfile/PatientProfilePage';
 import OverviewTab from '@/pages/PatientProfile/tabs/OverviewTab';
+import SessionsTab from '@/pages/PatientProfile/tabs/SessionsTab';
+import SessionDetailPage from '@/pages/SessionDetail/SessionDetailPage';
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
 // ── Phase 2–6 stubs ──────────────────────────────────────────────────────────
@@ -73,7 +75,7 @@ const router = createBrowserRouter([
         children: [
           { index: true,          element: <Navigate to="overview" replace /> },
           { path: 'overview',     element: <OverviewTab /> },
-          { path: 'sessions',     element: <ComingSoon label="Sessions Tab" /> },
+          { path: 'sessions',     element: <SessionsTab /> },
           { path: 'reports',      element: <ComingSoon label="Reports Tab" /> },
           { path: 'insights',     element: <ComingSoon label="Insights Tab" /> },
           { path: 'timeline',     element: <ComingSoon label="Timeline Tab" /> },
@@ -85,7 +87,7 @@ const router = createBrowserRouter([
         path: 'patients/:patientId/sessions/:sessionId',
         element: (
           <ErrorBoundary>
-            <ComingSoon label="Session Detail" />
+            <SessionDetailPage />
           </ErrorBoundary>
         ),
       },
