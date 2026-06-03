@@ -13,11 +13,23 @@ from models import User
 
 # Load environment configs
 JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable is missing. Application cannot start in an insecure state.")
+if len(JWT_SECRET) < 32:
+    raise RuntimeError("JWT_SECRET is too weak. It must be at least 32 characters long.")
+
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+if JWT_ALGORITHM != "HS256":
+    raise RuntimeError(f"Unsupported JWT_ALGORITHM: '{JWT_ALGORITHM}'. Only 'HS256' is allowed.")
+
+jwt_expire_raw = os.getenv("JWT_EXPIRE_MINUTES", "480")
 try:
-    JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "480"))
+    JWT_EXPIRE_MINUTES = int(jwt_expire_raw)
 except ValueError:
-    JWT_EXPIRE_MINUTES = 480
+    raise RuntimeError(f"JWT_EXPIRE_MINUTES must be a valid integer, got: '{jwt_expire_raw}'.")
+
+if JWT_EXPIRE_MINUTES <= 0:
+    raise RuntimeError(f"JWT_EXPIRE_MINUTES must be greater than zero, got: {JWT_EXPIRE_MINUTES}.")
 
 # HTTPBearer security scheme
 security = HTTPBearer()
