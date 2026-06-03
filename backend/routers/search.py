@@ -19,12 +19,16 @@ class AskRequest(BaseModel):
 
 
 @router.post("/")
-def ask_question(request: AskRequest):
+def ask_question(
+    request: AskRequest,
+    current_user = Depends(get_current_user),
+):
 
     # STEP 1 — retrieve relevant chunks
     results = search_similar_chunks(
         query=request.question,
         top_k=request.top_k,
+        owner_id=str(current_user.id),
     )
 
     # STEP 2 — no context found

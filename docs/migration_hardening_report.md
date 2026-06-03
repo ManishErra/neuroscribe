@@ -129,9 +129,9 @@ The local reports vector store utilizes an on-disk FAISS index (`vector.index`) 
 4.  Writes the updated list back to `vector_metadata.json` atomically.
 
 ### Expected Downtime:
-*   **SQL Schema Alteration**: < 50 milliseconds (since the database tables are small, adding columns and constraints is extremely fast).
-*   **FAISS Metadata Patching**: < 10 milliseconds.
-*   **Total Expected Downtime**: **Zero Downtime**. The JSON update is applied atomically via a file replace, and the database script runs in a single fast transaction.
+*   **SQL Schema Alteration**: **750ms to 1250ms** (actual measured transaction duration). While the database engine execution is extremely fast (<50ms), remote execution over network roundtrips keeps the transaction open and locks held for approximately ~1 second.
+*   **FAISS Metadata Patching**: < 10 milliseconds (atomic local JSON file replace).
+*   **Total Expected Downtime**: **Near-Zero Downtime (Minimal lock contention window)**. During the ~1 second SQL transaction, access-exclusive locks block writes to the modified tables, but these resolve immediately upon commit without service disruption if executed during low-traffic/off-peak windows.
 
 ### Migration Risks:
 1.  **Index/Metadata Length Mismatch**: FAISS requires that the total vectors in `vector.index` (`loaded_index.ntotal`) matches the length of the list in `vector_metadata.json` exactly. If reports are uploaded or deleted during the migration, the sizes could drift, causing FAISS to raise index size mismatches on boot.

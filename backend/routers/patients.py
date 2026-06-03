@@ -19,8 +19,8 @@ class PatientCreate(BaseModel):
 
 # GET all patients
 @router.get("/")
-def get_all_patients(db: DBSession = Depends(get_db)):
-    patients = db.query(Patient).order_by(Patient.created_at.desc()).all()
+def get_all_patients(db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
+    patients = db.query(Patient).filter(Patient.owner_id == current_user.id).order_by(Patient.created_at.desc()).all()
 
     return [
         {
@@ -36,8 +36,8 @@ def get_all_patients(db: DBSession = Depends(get_db)):
 
 # GET single patient
 @router.get("/{patient_id}")
-def get_patient(patient_id: str, db: DBSession = Depends(get_db)):
-    p = db.query(Patient).filter(Patient.id == patient_id).first()
+def get_patient(patient_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
+    p = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
 
     if not p:
         raise HTTPException(404, "Patient not found")
@@ -52,7 +52,7 @@ def get_patient(patient_id: str, db: DBSession = Depends(get_db)):
 
 # POST create patient
 @router.post("/")
-def create_patient(data: PatientCreate, db: DBSession = Depends(get_db)):
+def create_patient(data: PatientCreate, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
 
     if not data.name.strip():
         raise HTTPException(400, "Name cannot be empty")
@@ -64,7 +64,8 @@ def create_patient(data: PatientCreate, db: DBSession = Depends(get_db)):
         id=uuid.uuid4(),
         name=data.name.strip(),
         age=data.age,
-        gender=data.gender
+        gender=data.gender,
+        owner_id=current_user.id
     )
 
     db.add(patient)
@@ -79,9 +80,9 @@ def create_patient(data: PatientCreate, db: DBSession = Depends(get_db)):
 
 # DELETE patient
 @router.delete("/{patient_id}")
-def delete_patient(patient_id: str, db: DBSession = Depends(get_db)):
+def delete_patient(patient_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
 
-    p = db.query(Patient).filter(Patient.id == patient_id).first()
+    p = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
 
     if not p:
         raise HTTPException(404, "Patient not found")

@@ -11,13 +11,13 @@ from auth_utils import get_current_user
 router = APIRouter(tags=["Patient Insights"], dependencies=[Depends(get_current_user)])
 
 @router.get("/patient-insights/{patient_id}")
-def get_patient_insights(patient_id: str, db: DBSession = Depends(get_db)):
+def get_patient_insights(patient_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
     """
     Get clinical summary, findings, abnormalities, and recommendations for a patient
     based on their latest laboratory report and clinical history trends.
     """
-    # 1. Verify patient exists
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    # 1. Verify patient exists and is owned by user
+    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
     if not patient:
         raise HTTPException(
             status_code=404,
@@ -55,13 +55,13 @@ def get_patient_insights(patient_id: str, db: DBSession = Depends(get_db)):
 
 
 @router.get("/patient-overview/{patient_id}")
-def get_patient_overview(patient_id: str, db: DBSession = Depends(get_db)):
+def get_patient_overview(patient_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
     """
     Get a high-level patient overview for the dashboard cards, including
     clinical status, clinical flags, latest extracted labs, and last activity details.
     """
-    # 1. Verify patient exists
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    # 1. Verify patient exists and is owned by user
+    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
     if not patient:
         raise HTTPException(
             status_code=404,

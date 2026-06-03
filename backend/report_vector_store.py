@@ -75,6 +75,7 @@ class ChunkMetadata(TypedDict):
     chunk_length: NotRequired[int]
     report_source: NotRequired[str]
     chunk_position: NotRequired[int]
+    owner_id: NotRequired[str]
 
 
 class SimilarChunkResult(TypedDict):
@@ -87,6 +88,7 @@ class SimilarChunkResult(TypedDict):
     chunk_length: NotRequired[int]
     report_source: NotRequired[str]
     chunk_position: NotRequired[int]
+    owner_id: NotRequired[str]
 
 
 _index: Optional[faiss.IndexFlatIP] = None
@@ -185,6 +187,10 @@ def _parse_metadata(raw: object) -> List[ChunkMetadata]:
         if isinstance(chunk_position, int):
             meta["chunk_position"] = chunk_position
 
+        owner_id = item.get("owner_id")
+        if isinstance(owner_id, str):
+            meta["owner_id"] = owner_id
+
         parsed.append(meta)
 
     return parsed
@@ -211,6 +217,9 @@ def _result_from_metadata(
 
     if "chunk_position" in meta:
         result["chunk_position"] = meta["chunk_position"]
+
+    if "owner_id" in meta:
+        result["owner_id"] = meta["owner_id"]
 
     return result
 
@@ -367,6 +376,7 @@ def load_vector_store() -> None:
 def add_report_embeddings(
     report_id: str,
     report_text: str,
+    owner_id: str,
 ) -> int:
     """Embed report chunks and store them."""
 
@@ -374,6 +384,9 @@ def add_report_embeddings(
 
     if not report_id or not report_id.strip():
         raise ValueError("report_id cannot be empty")
+
+    if not owner_id or not owner_id.strip():
+        raise ValueError("owner_id cannot be empty")
 
     records = build_report_embeddings(report_text)
 
@@ -414,6 +427,7 @@ def add_report_embeddings(
                 "chunk_length": record["chunk_length"],
                 "report_source": report_id,
                 "chunk_position": record["char_start"],
+                "owner_id": owner_id,
             }
         )
 
@@ -427,6 +441,7 @@ def search_similar_chunks(
     top_k: int = DEFAULT_TOP_K,
     *,
     similarity_threshold: float = SIMILARITY_THRESHOLD,
+    owner_id: Optional[str] = None,
 ) -> List[SimilarChunkResult]:
     """
     Hybrid semantic + keyword boosted retrieval.
@@ -488,6 +503,13 @@ def search_similar_chunks(
             continue
 
         meta = _chunk_metadata[idx]
+
+        # CRITICAL OWNERSHIP ISOLATION GATE:
+        # Enforce that no chunk is returned unless owner_id matches.
+        if owner_id is not None:
+            chunk_owner = meta.get("owner_id")
+            if chunk_owner is None or str(chunk_owner) != str(owner_id):
+                continue
 
         # De-duplicate by normalized chunk text to prevent duplicate reports crowding out results
         norm_text = " ".join(meta["chunk_text"].lower().split())

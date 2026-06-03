@@ -249,13 +249,13 @@ def _to_detail(r: Report) -> ReportDetail:
 
 # POST create report metadata
 @router.post("/", response_model=ReportDetail)
-def create_report(data: ReportCreate, db: DBSession = Depends(get_db)):
+def create_report(data: ReportCreate, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
 
     path = data.file_path.strip()
     if not path:
         raise HTTPException(400, "file_path cannot be empty")
 
-    patient = db.query(Patient).filter(Patient.id == data.patient_id).first()
+    patient = db.query(Patient).filter(Patient.id == data.patient_id, Patient.owner_id == current_user.id).first()
 
     if not patient:
         raise HTTPException(404, "Patient not found")
@@ -290,13 +290,14 @@ async def upload_report(
     patient_id: str = Form(...),
     file: UploadFile = File(...),
     db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
 
     # =====================================
     # VALIDATE PATIENT
     # =====================================
 
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
 
     if not patient:
         raise HTTPException(
@@ -393,6 +394,7 @@ async def upload_report(
 def run_report_ocr(
     report_id: str,
     db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
 
     # =====================================
@@ -402,6 +404,18 @@ def run_report_ocr(
     report = db.query(Report).filter(Report.id == report_id).first()
 
     if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
+
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == report.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+
+    if not patient:
         raise HTTPException(
             status_code=404,
             detail="Report not found",
@@ -476,6 +490,7 @@ def run_report_ocr(
         add_report_embeddings(
             report_id=str(report.id),
             report_text=extracted,
+            owner_id=str(current_user.id),
         )
     except Exception as exc:
         print(
@@ -501,9 +516,10 @@ def run_report_ocr(
 def list_reports_for_patient(
     patient_id: str,
     db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user),
 ):
 
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
 
     if not patient:
         raise HTTPException(404, "Patient not found")
@@ -520,11 +536,20 @@ def list_reports_for_patient(
 
 # GET single report
 @router.get("/{report_id}", response_model=ReportDetail)
-def get_report(report_id: str, db: DBSession = Depends(get_db)):
+def get_report(report_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
 
     r = db.query(Report).filter(Report.id == report_id).first()
 
     if not r:
+        raise HTTPException(404, "Report not found")
+
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == r.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+
+    if not patient:
         raise HTTPException(404, "Report not found")
 
     return _to_detail(r)

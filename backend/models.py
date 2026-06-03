@@ -12,6 +12,7 @@ class Patient(Base):
     age = Column(Integer)
     gender = Column(String(20))
     created_at = Column(Date, server_default=func.now())
+    owner_id = Column(UUID(as_uuid=True), nullable=False)
 
 
 class Session(Base):
@@ -86,6 +87,11 @@ class Embedding(Base):
         server_default=func.now()
     )
 
+    owner_id = Column(
+        UUID(as_uuid=True),
+        nullable=False
+    )
+
 
 class User(Base):
     __tablename__ = "users"
@@ -95,3 +101,4 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     name = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    force_password_reset = Column(Boolean, default=False, nullable=False)

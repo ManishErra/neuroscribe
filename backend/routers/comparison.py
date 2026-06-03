@@ -9,12 +9,12 @@ from auth_utils import get_current_user
 router = APIRouter(prefix="/compare", tags=["Comparison"], dependencies=[Depends(get_current_user)])
 
 @router.get("/{patient_id}")
-def get_patient_comparison(patient_id: str, db: DBSession = Depends(get_db)):
+def get_patient_comparison(patient_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
     """
     Get clinical laboratory comparison and change detection for a patient.
     """
-    # 1. Verify patient exists
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    # 1. Verify patient exists and is owned by user
+    patient = db.query(Patient).filter(Patient.id == patient_id, Patient.owner_id == current_user.id).first()
     if not patient:
         raise HTTPException(
             status_code=404,

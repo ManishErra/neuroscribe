@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DBSession
 
 from database import get_db
-from models import Session as SessionModel, Transcript, Note
+from models import Session as SessionModel, Transcript, Note, Patient
 from auth_utils import get_current_user
 
 import uuid
@@ -17,8 +17,17 @@ router = APIRouter(prefix="/sessions", dependencies=[Depends(get_current_user)])
 @router.get("/patient/{patient_id}")
 def get_patient_sessions(
     patient_id: str,
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+
     sessions = db.query(SessionModel).filter(
         SessionModel.patient_id == patient_id
     ).order_by(SessionModel.session_date.desc()).all()
@@ -45,13 +54,22 @@ def get_patient_sessions(
 @router.get("/{session_id}")
 def get_session(
     session_id: str,
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
     s = db.query(SessionModel).filter(
         SessionModel.id == session_id
     ).first()
 
     if not s:
+        raise HTTPException(404, "Session not found")
+
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == s.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
         raise HTTPException(404, "Session not found")
 
     transcript = db.query(Transcript).filter(
@@ -81,8 +99,16 @@ class SessionCreate(BaseModel):
 @router.post("/")
 def create_session(
     data: SessionCreate,
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == data.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        raise HTTPException(404, "Patient not found")
 
     session = SessionModel(
     id=uuid.uuid4(),
