@@ -21,8 +21,7 @@ def run_migration():
     
     print(f"Generated secure Legacy Owner UUID: {legacy_owner_id}")
     print(f"Generated secure Legacy Owner email: legacy-owner@neuroscribe.org")
-    print(f"Generated secure password: {raw_password}")
-    print("WARNING: Please record this password securely. It will not be printed or stored anywhere else.")
+    print("Legacy owner password generated and stored securely.")
     
     # Write credentials securely to a local file (not committed to git)
     creds_file = Path(__file__).resolve().parent.parent.parent / ".env.migration"
