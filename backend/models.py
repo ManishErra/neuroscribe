@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Text, Boolean, Date, Integer
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, Text, Boolean, Date, DateTime, Integer
+from sqlalchemy.dialects.postgresql import UUID, CITEXT
 from sqlalchemy.sql import func
 from database import Base
 import uuid
@@ -12,6 +12,7 @@ class Patient(Base):
     age = Column(Integer)
     gender = Column(String(20))
     created_at = Column(Date, server_default=func.now())
+    owner_id = Column(UUID(as_uuid=True), nullable=False)
 
 
 class Session(Base):
@@ -41,6 +42,24 @@ class Note(Base):
     doctor_edited = Column(Text)
     is_finalized = Column(Boolean, default=False)
     created_at = Column(Date, server_default=func.now())
+
+
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    patient_id = Column(UUID(as_uuid=True), nullable=False)
+    file_path = Column(Text, nullable=False)
+    original_filename = Column(String(255))
+    mime_type = Column(String(128))
+    title = Column(String(200))
+    report_date = Column(Date)
+    ocr_text = Column(Text)
+    ocr_status = Column(String(32), nullable=False, default="pending")
+    ocr_error = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 class Embedding(Base):
 
     __tablename__ = "embeddings"
@@ -67,3 +86,19 @@ class Embedding(Base):
         Date,
         server_default=func.now()
     )
+
+    owner_id = Column(
+        UUID(as_uuid=True),
+        nullable=False
+    )
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(CITEXT, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    name = Column(String(100), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    force_password_reset = Column(Boolean, default=False, nullable=False)

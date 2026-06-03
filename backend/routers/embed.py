@@ -16,7 +16,9 @@ from database import get_db
 
 from models import (
     Note,
-    Embedding
+    Embedding,
+    Session as SessionModel,
+    Patient
 )
 
 from embeddings import (
@@ -24,11 +26,13 @@ from embeddings import (
     chunk_text
 )
 
+from auth_utils import get_current_user
 import uuid
 import json
 
 router = APIRouter(
-    prefix="/embed"
+    prefix="/embed",
+    dependencies=[Depends(get_current_user)]
 )
 
 # =========================
@@ -46,7 +50,8 @@ class EmbedRequest(BaseModel):
 @router.post("/note")
 def embed_note(
     req: EmbedRequest,
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
 
     # =========================
@@ -63,6 +68,18 @@ def embed_note(
             404,
             "Note not found"
         )
+
+    # Verify patient ownership via session
+    session = db.query(SessionModel).filter(SessionModel.id == note.session_id).first()
+    if not session:
+        raise HTTPException(404, "Note not found")
+        
+    patient = db.query(Patient).filter(
+        Patient.id == session.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        raise HTTPException(404, "Note not found")
 
     if not note.is_finalized:
 
@@ -137,7 +154,8 @@ def embed_note(
                 source_id,
                 source_type,
                 chunk_text,
-                embedding
+                embedding,
+                owner_id
             )
 
             VALUES
@@ -146,7 +164,8 @@ def embed_note(
                 :source_id,
                 :source_type,
                 :chunk_text,
-                :embedding
+                :embedding,
+                :owner_id
             )
 
         """), {
@@ -159,7 +178,9 @@ def embed_note(
 
             "chunk_text": chunk,
 
-            "embedding": str(vec)
+            "embedding": str(vec),
+
+            "owner_id": str(current_user.id)
         })
 
         stored += 1

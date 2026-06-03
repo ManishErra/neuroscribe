@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import text as sql_text
 
 from database import get_db
-from models import Note, Transcript
+from models import Note, Transcript, Session as SessionModel, Patient
+from auth_utils import get_current_user
 
 from prompts import (
     SYSTEM_PROMPT,
@@ -29,7 +30,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
@@ -112,7 +113,8 @@ def clean_llm_json(text: str) -> str:
 @router.post("/generate-note")
 def generate_note(
     req: NoteRequest,
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
 
     transcript = db.query(
@@ -127,6 +129,18 @@ def generate_note(
             status_code=404,
             detail="Transcript not found"
         )
+
+    # Verify patient ownership via session
+    session = db.query(SessionModel).filter(SessionModel.id == transcript.session_id).first()
+    if not session:
+        raise HTTPException(404, "Transcript not found")
+    
+    patient = db.query(Patient).filter(
+        Patient.id == session.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        raise HTTPException(404, "Transcript not found")
 
     if not transcript.raw_text:
 
@@ -270,7 +284,8 @@ def generate_note(
 @router.post("/save-note")
 def save_note(
     req: SaveNoteRequest,
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 ):
 
     note = db.query(Note).filter(
@@ -283,6 +298,18 @@ def save_note(
             status_code=404,
             detail="Note not found"
         )
+
+    # Verify patient ownership via session
+    session = db.query(SessionModel).filter(SessionModel.id == note.session_id).first()
+    if not session:
+        raise HTTPException(404, "Note not found")
+        
+    patient = db.query(Patient).filter(
+        Patient.id == session.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        raise HTTPException(404, "Note not found")
 
     if note.is_finalized:
 
@@ -351,7 +378,8 @@ def save_note(
                         source_id,
                         source_type,
                         chunk_text,
-                        embedding
+                        embedding,
+                        owner_id
                     )
 
                     VALUES
@@ -360,7 +388,8 @@ def save_note(
                         :source_id,
                         :source_type,
                         :chunk_text,
-                        :embedding
+                        :embedding,
+                        :owner_id
                     )
 
                 """),
@@ -375,10 +404,11 @@ def save_note(
 
                     "chunk_text": chunk,
 
-                    "embedding": str(vec)
+                    "embedding": str(vec),
+
+                    "owner_id": str(current_user.id)
 
                 }
-
             )
 
         db.commit()

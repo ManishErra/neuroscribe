@@ -1,0 +1,44 @@
+[
+  {
+    "id": "case_1",
+    "name": "Hemoglobin",
+    "query": "What is the Hb level?",
+    "expected_entity": "Hemoglobin",
+    "expected_value": "14.5"
+  },
+  {
+    "id": "case_2",
+    "name": "WBC",
+    "query": "What is the WBC count?",
+    "expected_entity": "WBC Count",
+    "expected_value": "10570"
+  },
+  {
+    "id": "case_3",
+    "name": "RBC",
+    "query": "Show me RBC count",
+    "expected_entity": "RBC Count",
+    "expected_value": "4.79"
+  },
+  {
+    "id": "case_4",
+    "name": "Platelets",
+    "query": "What is the PLT level?",
+    "expected_entity": "Platelet Count",
+    "expected_value": "190000"
+  },
+  {
+    "id": "case_5",
+    "name": "Glucose",
+    "query": "What is the sugar level?",
+    "expected_entity": "Fasting Blood Sugar",
+    "expected_value": "141.0"
+  },
+  {
+    "id": "case_6",
+    "name": "Creatinine",
+    "query": "What is the creatinine level?",
+    "expected_entity": "Creatinine",
+    "expected_value": "0.83"
+  }
+]

@@ -1,0 +1,4 @@
+# Day 12 OCR — install system Tesseract; for PDFs install Poppler and set POPPLER_PATH on Windows if needed.
+pillow>=10.0.0
+pytesseract>=0.3.10
+pdf2image>=1.17.0

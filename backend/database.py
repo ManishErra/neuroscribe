@@ -1,9 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from pathlib import Path
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+# Load env file robustly using absolute path relative to database.py
+_env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 engine = create_engine(
     os.getenv("DATABASE_URL"),

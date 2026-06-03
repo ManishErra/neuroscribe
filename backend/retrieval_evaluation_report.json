@@ -1,0 +1,84 @@
+{
+  "summary": {
+    "total_cases": 6,
+    "passed": 6,
+    "failed": 0,
+    "top_1_accuracy_pct": 66.67,
+    "top_5_accuracy_pct": 100.0,
+    "retrieval_accuracy_pct": 100.0
+  },
+  "cases": [
+    {
+      "name": "Hemoglobin",
+      "query": "What is the Hb level?",
+      "rewritten": "What is the Hb level? hemoglobin hgb blood hemoglobin",
+      "top_chunk_index": 24,
+      "top_chunk_score": 0.9422,
+      "top_chunk_preview": "Result Unit H 7.10 % 157.07 mg/dL Client/Location Information : Sterling Accuris Buddy : 20-Feb-2023 11:33 Status: Final...",
+      "rank_found": 2,
+      "top_1_accuracy": "0%",
+      "top_5_accuracy": "100%",
+      "status": "PASS"
+    },
+    {
+      "name": "WBC",
+      "query": "What is the WBC count?",
+      "rewritten": "What is the WBC count? white blood cell wbc white blood count",
+      "top_chunk_index": 3,
+      "top_chunk_score": 0.6761,
+      "top_chunk_preview": "Interval Hemoglobin Colorimetric 14.5 g/dL 13.0-16.5 RBC Count Electrical impadance ~ 4.79 million/cmm 45-55 Hematocrit ...",
+      "rank_found": 1,
+      "top_1_accuracy": "100%",
+      "top_5_accuracy": "100%",
+      "status": "PASS"
+    },
+    {
+      "name": "RBC",
+      "query": "Show me RBC count",
+      "rewritten": "Show me RBC count red blood cell rbc red blood count",
+      "top_chunk_index": 3,
+      "top_chunk_score": 0.6619,
+      "top_chunk_preview": "Interval Hemoglobin Colorimetric 14.5 g/dL 13.0-16.5 RBC Count Electrical impadance ~ 4.79 million/cmm 45-55 Hematocrit ...",
+      "rank_found": 1,
+      "top_1_accuracy": "100%",
+      "top_5_accuracy": "100%",
+      "status": "PASS"
+    },
+    {
+      "name": "Platelets",
+      "query": "What is the PLT level?",
+      "rewritten": "What is the PLT level? platelet platelets plt platelet count",
+      "top_chunk_index": 5,
+      "top_chunk_score": 0.6441,
+      "top_chunk_preview": "1100 - 3300 Eosinophils Microscopic 02 % 1-6 211 /emm 00 - 400 Monocytes Microscopic 06 % 2-10 634 /emm 200 - 700 Basoph...",
+      "rank_found": 1,
+      "top_1_accuracy": "100%",
+      "top_5_accuracy": "100%",
+      "status": "PASS"
+    },
+    {
+      "name": "Glucose",
+      "query": "What is the sugar level?",
+      "rewritten": "What is the sugar level? glucose sugar blood glucose",
+      "top_chunk_index": 25,
+      "top_chunk_score": 0.651,
+      "top_chunk_preview": ": 6.0-7.0 % . Total haemoglobin A1 \u00a2 is continuously synthesized in the red blood cell throught its 120 days life span. ...",
+      "rank_found": 3,
+      "top_1_accuracy": "0%",
+      "top_5_accuracy": "100%",
+      "status": "PASS"
+    },
+    {
+      "name": "Creatinine",
+      "query": "What is the creatinine level?",
+      "rewritten": "What is the creatinine level? creatinine creat",
+      "top_chunk_index": 46,
+      "top_chunk_score": 0.7967,
+      "top_chunk_preview": "for females.(3) Microalbuminuria is defined as an albumin:creatinine ratio of 17 to 299 for males and 25 to 299 for fema...",
+      "rank_found": 1,
+      "top_1_accuracy": "100%",
+      "top_5_accuracy": "100%",
+      "status": "PASS"
+    }
+  ]
+}

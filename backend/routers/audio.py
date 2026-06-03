@@ -15,13 +15,15 @@ from database import get_db
 
 from models import (
     Transcript,
-    Session as SessionModel
+    Session as SessionModel,
+    Patient
 )
 
 import os
 import uuid
 
 from dotenv import load_dotenv
+from auth_utils import get_current_user
 
 
 # =========================================
@@ -35,7 +37,7 @@ load_dotenv()
 # ROUTER
 # =========================================
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 # =========================================
@@ -188,7 +190,8 @@ async def upload_audio(
 
     file: UploadFile = File(...),
 
-    db: DBSession = Depends(get_db)
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user)
 
 ):
 
@@ -206,6 +209,17 @@ async def upload_audio(
 
     if not existing_session:
 
+        raise HTTPException(
+            status_code=404,
+            detail="Session not found"
+        )
+
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == existing_session.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
         raise HTTPException(
             status_code=404,
             detail="Session not found"
