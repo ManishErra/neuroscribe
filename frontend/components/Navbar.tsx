@@ -1,6 +1,14 @@
+"use client";
+
 import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { useAuth } from "../context/AuthContext"
 
 export default function Navbar() {
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  if (pathname === "/login") return null;
 
   return (
 
@@ -124,6 +132,29 @@ export default function Navbar() {
             Upload Session
 
           </Link>
+
+          {user && (
+            <>
+              <div className="h-4 w-[1px] bg-white/10 mx-2"></div>
+              <span className="text-xs text-zinc-500 font-medium px-1 max-w-[150px] truncate select-none">
+                {user.name || user.email}
+              </span>
+              <button
+                onClick={logout}
+                className="
+                  text-sm
+                  text-red-400
+                  hover:text-white
+                  hover:bg-red-500/10
+                  transition-all
+                  px-4 py-2
+                  rounded-xl
+                "
+              >
+                Logout
+              </button>
+            </>
+          )}
 
         </div>
 

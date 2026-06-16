@@ -8,6 +8,7 @@ if str(_BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(_BACKEND_DIR))
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from fastapi.middleware.cors import (
     CORSMiddleware
@@ -105,6 +106,15 @@ app.add_middleware(
     allow_headers=["*"]
 
 )
+
+
+# =========================================
+# STATIC FILE SERVING
+# =========================================
+
+uploads_dir = Path(__file__).resolve().parent / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
 
 
 # =========================================

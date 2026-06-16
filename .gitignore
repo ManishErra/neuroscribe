@@ -1,7 +1,30 @@
-backend/.env
-backend/venv/
-frontend/.next/
-frontend/node_modules/
-
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+venv-1/
+
+# Environment variables
+.env*
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads
+uploads/
+
+# FAISS indexes
+vector.index
+vector_metadata.json
+
+# Logs
+*.log

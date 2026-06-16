@@ -1,0 +1,19 @@
+warning: in the working copy of 'backend/patient_insights.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/routers/comparison.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/routers/timeline.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/migration_hardening_report.md', LF will be replaced by CRLF the next time Git touches it
+ .gitignore                         |  2 [32m+[m[31m-[m
+ backend/models.py                  |  9 [32m+++++++[m[31m-[m
+ backend/patient_insights.py        | 12 [32m+++++[m[31m------[m
+ backend/report_vector_store.py     | 22 [32m+++++++++++++++++++[m
+ backend/routers/audio.py           | 17 [32m+++++++++++++[m[31m--[m
+ backend/routers/comparison.py      |  6 [32m+++[m[31m---[m
+ backend/routers/embed.py           | 29 [32m++++++++++++++++++++[m[31m-----[m
+ backend/routers/notes.py           | 43 [32m+++++++++++++++++++++++++++++++[m[31m-------[m
+ backend/routers/patients.py        | 17 [32m++++++++[m[31m-------[m
+ backend/routers/reports.py         | 35 [32m++++++++++++++++++++++++++[m[31m-----[m
+ backend/routers/search.py          |  6 [32m+++++[m[31m-[m
+ backend/routers/sessions.py        | 34 [32m++++++++++++++++++++++++++[m[31m----[m
+ backend/routers/timeline.py        |  6 [32m+++[m[31m---[m
+ docs/migration_hardening_report.md |  6 [32m+++[m[31m---[m
+ 14 files changed, 195 insertions(+), 49 deletions(-)

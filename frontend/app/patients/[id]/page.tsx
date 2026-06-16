@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { apiRequest } from "../../../lib/api"
 
 type Patient = {
   id: string
@@ -78,30 +79,13 @@ export default function PatientDetailPage() {
 
         setLoading(true)
 
-        const patientRes = await fetch(
-          `http://localhost:8000/patients/${patientId}`
-        )
-
-        if (!patientRes.ok) {
-          throw new Error("Patient not found")
-        }
-
-        const patientData =
-          await patientRes.json()
+        const patientData = await apiRequest(`/patients/${patientId}`)
 
         setPatient(patientData)
 
-        const sessionRes = await fetch(
-          `http://localhost:8000/sessions/patient/${patientId}`
-        )
+        const sessionData = await apiRequest(`/sessions/patient/${patientId}`)
 
-        if (sessionRes.ok) {
-
-          const sessionData =
-            await sessionRes.json()
-
-          setSessions(sessionData)
-        }
+        setSessions(sessionData)
 
       } catch (err: any) {
 
@@ -132,43 +116,16 @@ export default function PatientDetailPage() {
 
       setError("")
 
-      const today =
-        new Date()
-          .toISOString()
-          .split("T")[0]
+      await apiRequest("/sessions/", {
+        method: "POST",
+        body: JSON.stringify({
+          patient_id: patientId
+        })
+      })
 
-      const res = await fetch(
-        "http://localhost:8000/sessions/",
-        {
-          method: "POST",
+      const sessionData = await apiRequest(`/sessions/patient/${patientId}`)
 
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body: JSON.stringify({
-            patient_id: patientId,
-            session_date: today
-          })
-        }
-      )
-
-      if (!res.ok) {
-        throw new Error(await res.text())
-      }
-
-      const sessionRes = await fetch(
-        `http://localhost:8000/sessions/patient/${patientId}`
-      )
-
-      if (sessionRes.ok) {
-
-        const sessionData =
-          await sessionRes.json()
-
-        setSessions(sessionData)
-      }
+      setSessions(sessionData)
 
     } catch (err: any) {
 
@@ -195,30 +152,27 @@ export default function PatientDetailPage() {
 
       setError("")
 
-      const res = await fetch(
-        "http://localhost:8000/search/ask",
-        {
-          method: "POST",
+      const data = await apiRequest("/ask/", {
+        method: "POST",
+        body: JSON.stringify({
+          question: query.trim(),
+          top_k: 5
+        })
+      })
 
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-
-          body: JSON.stringify({
-            query: query.trim(),
-            patient_id: patientId
-          })
-        }
-      )
-
-      if (!res.ok) {
-        throw new Error(await res.text())
+      // Map backend chunks_used to frontend expected sources attribute
+      const mappedData = {
+        answer: data.answer,
+        sources: (data.chunks_used || []).map((chunk: any) => ({
+          date: chunk.report_source || "N/A",
+          similarity: chunk.similarity_score,
+          excerpt: chunk.chunk_text
+        })),
+        citation_verified: true,
+        query: data.question
       }
 
-      const data = await res.json()
-
-      setAnswer(data)
+      setAnswer(mappedData)
 
     } catch {
 

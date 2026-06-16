@@ -1,0 +1,19 @@
+# pack-refs with: peeled fully-peeled sorted 
+49b126c1d33006ebc82645d7354cc2587c1d6ffb refs/heads/add-reports
+8ca0e242122a3635fa0b2355c220e339f071d5fa refs/heads/main
+b708d1a48223d3da5afcbe1b66ad0c46692cd614 refs/tags/day18-complete
+1b9bb26d38687d298c2147bd495d6dd2cd03b009 refs/tags/day19-complete
+2a53461b29963b25b7f58c1af19e2d317b24b169 refs/tags/day20-polish
+6028e6fbce34c2a19ef731bc7f2ddc3b1646eb99 refs/tags/day21-clinical-timeline
+0d7e4e53e1dffba8121b4daaa23e9e4f1a701000 refs/tags/day22-clinical-comparison
+87716f212c7955bad00c529edfd64a31336dccce refs/tags/day23-clinical-summary
+db94c46e0e258d4496ab154e16dff6bff41696e9 refs/tags/day24-ui-complete
+188ec798142d4c07c6f22afcc70b601328d14418 refs/tags/day25-frontend-foundation
+24f0672f16b6fa7ebf2bf4c489df2bc1b63bed7a refs/tags/day26-dashboard-core
+953b917cf03e6a51e111afb2329c659fa3856682 refs/tags/day27-patient-directory
+91988a96e8c8357df1e0ade6e31e5fca8b8e7b1d refs/tags/day28-patient-profile
+ba18e1206d38eafbb7b53b2589f5cf4793b66995 refs/tags/day29-sessions-pipeline
+bbed2b3739bda8dba48709aff4068ecb33daaaeb refs/tags/day30-reports-ocr
+976bb4d099684e70ae93cfc8f2b917c73de9421f refs/tags/day31-settings-dashboard
+cb4abf452dab57ad50edd1efb3b14057f6e26213 refs/tags/day32-semantic-search
+8335513a2626fc30efa55e4ae3cd18f327ffc053 refs/tags/day35-multi-tenancy

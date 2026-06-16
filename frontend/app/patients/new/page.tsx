@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { apiRequest } from "../../../lib/api"
 
 export default function NewPatientPage() {
   const router = useRouter()
@@ -16,17 +17,14 @@ export default function NewPatientPage() {
     }
     setSaving(true); setError("")
     try {
-      const res = await fetch("http://localhost:8000/patients/", {
+      const data = await apiRequest("/patients/", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
           age: parseInt(form.age),
           gender: form.gender
         })
       })
-      if (!res.ok) throw new Error(await res.text())
-      const data = await res.json()
       // Redirect to patient detail page
       router.push(`/patients/${data.id}`)
     } catch (err: any) {

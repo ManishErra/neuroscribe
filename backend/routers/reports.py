@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session as DBSession
 from database import get_db
 from models import Patient, Report
 from report_ocr_extract import extract_report_text
+from fastapi.concurrency import run_in_threadpool
 from report_vector_store import add_report_embeddings
 from auth_utils import get_current_user
 
@@ -315,9 +316,31 @@ async def upload_report(
     # READ BODY + VALIDATE SIZE
     # =====================================
 
-    contents = await file.read()
+    content_length = file.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REPORT_FILE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File too large. Maximum size is {MAX_REPORT_FILE_SIZE_MB}MB.",
+                )
+        except ValueError:
+            pass
 
-    validate_report_file_size(contents)
+    contents_accumulator = bytearray()
+    chunk_size = 64 * 1024
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        contents_accumulator.extend(chunk)
+        if len(contents_accumulator) > MAX_REPORT_FILE_SIZE_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size is {MAX_REPORT_FILE_SIZE_MB}MB.",
+            )
+
+    contents = bytes(contents_accumulator)
 
     if not contents:
         raise HTTPException(
@@ -391,7 +414,7 @@ async def upload_report(
     "/{report_id}/ocr",
     response_model=ReportOcrResponse,
 )
-def run_report_ocr(
+async def run_report_ocr(
     report_id: str,
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user),
@@ -457,7 +480,7 @@ def run_report_ocr(
     # =====================================
 
     try:
-        extracted = extract_report_text(disk_path, mime_type)
+        extracted = await run_in_threadpool(extract_report_text, disk_path, mime_type)
     except Exception as exc:
         err = _truncate_ocr_error(str(exc) or repr(exc))
         report.ocr_status = "failed"
@@ -553,3 +576,55 @@ def get_report(report_id: str, db: DBSession = Depends(get_db), current_user = D
         raise HTTPException(404, "Report not found")
 
     return _to_detail(r)
+
+
+# DELETE single report
+@router.delete(
+    "/{report_id}",
+    status_code=204,
+)
+def delete_report(
+    report_id: str,
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    # =====================================
+    # LOAD REPORT
+    # =====================================
+    report = db.query(Report).filter(Report.id == report_id).first()
+
+    if not report:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
+
+    # Verify patient ownership
+    patient = db.query(Patient).filter(
+        Patient.id == report.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
+
+    # =====================================
+    # CLEANUP FILE
+    # =====================================
+    if report.file_path:
+        try:
+            disk_path = resolve_uploaded_report_disk_path(report.file_path)
+            cleanup_report_file(disk_path)
+        except Exception:
+            pass
+
+    # =====================================
+    # DELETE ROW
+    # =====================================
+    db.delete(report)
+    db.commit()
+
+    return None

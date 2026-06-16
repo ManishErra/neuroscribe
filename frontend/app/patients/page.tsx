@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { apiRequest } from "../../lib/api"
 
 type Patient = {
   id: string
@@ -13,14 +14,25 @@ type Patient = {
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch("http://localhost:8000/patients/")
-      .then((r) => r.json())
-      .then((data) => {
-        setPatients(data)
-        setLoading(false)
-      })
+    const fetchPatients = async () => {
+      try {
+        const data = await apiRequest("/patients/");
+        if (Array.isArray(data)) {
+          setPatients(data);
+        } else {
+          setPatients([]);
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load patients list.");
+        setPatients([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPatients();
   }, [])
 
   return (
@@ -35,6 +47,12 @@ export default function PatientsPage() {
           + Add Patient
         </Link>
       </div>
+
+      {error && (
+        <div className="rounded-xl bg-red-500/10 border border-red-500/25 p-4 mb-6 text-sm font-medium text-red-400">
+          {error}
+        </div>
+      )}
 
       {loading && (
         <p className="text-gray-400 text-sm">
