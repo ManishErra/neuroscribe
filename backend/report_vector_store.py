@@ -77,6 +77,7 @@ class ChunkMetadata(TypedDict):
     report_source: NotRequired[str]
     chunk_position: NotRequired[int]
     owner_id: NotRequired[str]
+    migration_status: NotRequired[str]
 
 
 class SimilarChunkResult(TypedDict):
@@ -91,6 +92,7 @@ class SimilarChunkResult(TypedDict):
     report_source: NotRequired[str]
     chunk_position: NotRequired[int]
     owner_id: NotRequired[str]
+    migration_status: NotRequired[str]
 
 
 _index: Optional[faiss.IndexFlatIP] = None
@@ -197,6 +199,10 @@ def _parse_metadata(raw: object) -> List[ChunkMetadata]:
         if isinstance(owner_id, str):
             meta["owner_id"] = owner_id
 
+        migration_status = item.get("migration_status")
+        if isinstance(migration_status, str):
+            meta["migration_status"] = migration_status
+
         parsed.append(meta)
 
     return parsed
@@ -227,6 +233,9 @@ def _result_from_metadata(
 
     if "owner_id" in meta:
         result["owner_id"] = meta["owner_id"]
+
+    if "migration_status" in meta:
+        result["migration_status"] = meta["migration_status"]
 
     return result
 
@@ -523,6 +532,10 @@ def search_similar_chunks(
             continue
 
         meta = _chunk_metadata[idx]
+
+        # EXCLUDE ORPHANED CHUNKS FROM RETRIEVAL:
+        if meta.get("migration_status") == "orphaned":
+            continue
 
         # CRITICAL OWNERSHIP ISOLATION GATE:
         # Enforce that no chunk is returned unless owner_id matches.

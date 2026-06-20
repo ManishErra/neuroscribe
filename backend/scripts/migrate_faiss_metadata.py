@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 from database import SessionLocal
 
 def run_faiss_metadata_migration():
-    print("=== STARTING DAY 35B FAISS METADATA MIGRATION ===")
+    print("=== STARTING DAY 35B/PHASE 0 FAISS METADATA MIGRATION ===")
     
     backend_dir = Path(__file__).resolve().parent.parent
     metadata_path = backend_dir / "vector_metadata.json"
@@ -36,22 +36,29 @@ def run_faiss_metadata_migration():
     mapping = {}
     try:
         query = """
-            SELECT r.id, p.owner_id 
+            SELECT r.id, r.patient_id, p.owner_id 
             FROM reports r 
             JOIN patients p ON r.patient_id = p.id
         """
         rows = db.execute(text(query)).fetchall()
-        for r_id, owner_id in rows:
-            mapping[str(r_id)] = str(owner_id)
-        print(f"Loaded {len(mapping)} active report-to-owner mappings from database.")
+        for r_id, patient_id, owner_id in rows:
+            mapping[str(r_id)] = {
+                "patient_id": str(patient_id),
+                "owner_id": str(owner_id)
+            }
+        print(f"Loaded {len(mapping)} active report-to-patient mappings from database.")
     except Exception as e:
         db.close()
         raise RuntimeError(f"Database query failed during mapping fetch: {e}")
     finally:
         db.close()
         
-    # STEP 5: Patch Chunks In-Memory (Loud Failure Enforcement)
+    # STEP 5: Patch Chunks In-Memory (Orphaned Chunk Policy Enforcement)
     patched_chunks = []
+    active_count = 0
+    orphaned_count = 0
+    orphaned_reports = set()
+    
     for idx, chunk in enumerate(chunks):
         r_id = chunk.get("report_id") or chunk.get("report_source")
         if not r_id:
@@ -59,15 +66,23 @@ def run_faiss_metadata_migration():
             
         r_id_str = str(r_id)
         
-        # Loud failure if database has no owner mapping for the report (silent fallback is disabled)
+        # Orphaned Chunk Policy
         if r_id_str not in mapping:
-            raise RuntimeError(
-                f"LOUD MIGRATION FAILURE: Database contains no ownership records for report_id '{r_id_str}' "
-                f"at metadata index {idx}. Fallback is disabled."
-            )
+            chunk["migration_status"] = "orphaned"
+            chunk["patient_id"] = "orphaned"
+            chunk["owner_id"] = "orphaned"
+            orphaned_count += 1
+            orphaned_reports.add(r_id_str)
+        else:
+            # Active Chunk Mapping
+            db_map = mapping[r_id_str]
+            chunk["patient_id"] = db_map["patient_id"]
+            chunk["owner_id"] = db_map["owner_id"]
+            # Clean up migration_status if it was somehow present
+            if "migration_status" in chunk:
+                del chunk["migration_status"]
+            active_count += 1
             
-        # Patch chunk dictionary
-        chunk["owner_id"] = mapping[r_id_str]
         patched_chunks.append(chunk)
         
     # STEP 6: Validate Chunk Counts Match Exactly
@@ -77,7 +92,11 @@ def run_faiss_metadata_migration():
             f"LOUD MIGRATION FAILURE: Patched count ({patched_count}) does not match "
             f"original count ({original_count}). Aborting replacement."
         )
+        
     print(f"Validation successful: Patched chunk count matches original count ({patched_count}).")
+    print(f"  - Active chunks successfully patched: {active_count}")
+    print(f"  - Orphaned chunks logged and marked  : {orphaned_count}")
+    print(f"  - Unique orphaned report IDs        : {list(orphaned_reports)}")
     
     # STEP 7: Atomic Write Replacement
     print(f"Writing to temporary file: {tmp_path}")
@@ -88,7 +107,7 @@ def run_faiss_metadata_migration():
     print(f"Replacing original file atomically: {metadata_path}")
     tmp_path.replace(metadata_path)
     
-    print("=== DAY 35B FAISS METADATA MIGRATION COMPLETED SUCCESSFULLY ===")
+    print("=== DAY 35B/PHASE 0 FAISS METADATA MIGRATION COMPLETED SUCCESSFULLY ===")
 
 if __name__ == "__main__":
     try:
