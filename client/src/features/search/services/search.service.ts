@@ -8,9 +8,10 @@ import type { AskResponse } from '../types/search.types';
  * Sends a search query to the backend '/ask' endpoint.
  * Retrieval parameter top_k is hardcoded to 5 per requirements.
  */
-export async function postAsk(question: string): Promise<AskResponse> {
+export async function postAsk(question: string, patientId: string): Promise<AskResponse> {
   return client.post('/ask/', {
     question,
+    patient_id: patientId,
     top_k: 5,
   });
 }

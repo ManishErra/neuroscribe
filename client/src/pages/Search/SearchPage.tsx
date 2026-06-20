@@ -20,7 +20,7 @@ export default function SearchPage() {
   }, []);
 
   const handleSearch = (query: string) => {
-    mutate(query);
+    mutate({ question: query, patientId: '' });
   };
 
   return (

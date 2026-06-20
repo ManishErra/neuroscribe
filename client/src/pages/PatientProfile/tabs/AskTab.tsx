@@ -36,7 +36,7 @@ export default function AskTab() {
     // Auto-inject context to ground the search slightly more to this patient 
     // even if the vector DB currently searches all doctor's documents.
     const contextualQuery = `Regarding patient ${patient?.name || 'this patient'}: ${query}`;
-    askMutation.mutate(contextualQuery);
+    askMutation.mutate({ question: contextualQuery, patientId: patientId || '' });
   };
 
   const renderAnswer = () => {

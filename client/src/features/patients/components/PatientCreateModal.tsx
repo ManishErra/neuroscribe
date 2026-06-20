@@ -49,18 +49,18 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px] bg-white border-border shadow-lg rounded-xl">
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-[#191c1d] flex items-center gap-2">
-            <User className="h-5 w-5 text-[#003d9b]" />
+          <DialogTitle className="text-lg font-bold text-[#191c1d] dark:text-foreground flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" />
             New Clinical Profile
           </DialogTitle>
-          <DialogDescription className="text-xs font-semibold text-[#747783]">
+          <DialogDescription className="text-xs font-semibold text-[#747783] dark:text-muted-foreground">
             Register a new patient into the clinical workspace.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-[#747783] tracking-widest">Full Name</label>
+            <label className="text-[10px] uppercase font-bold text-[#747783] dark:text-muted-foreground tracking-widest">Full Name</label>
             <div className="relative">
               <User className="absolute left-3 top-2.5 h-4 w-4 text-[#747783]" />
               <input
@@ -69,14 +69,14 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. John Doe"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] text-sm text-[#191c1d] focus:outline-none focus:border-[#003d9b] focus:ring-1 focus:ring-[#003d9b] transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] dark:bg-muted text-sm text-[#191c1d] dark:text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-[#747783] tracking-widest">Date of Birth</label>
+              <label className="text-[10px] uppercase font-bold text-[#747783] dark:text-muted-foreground tracking-widest">Date of Birth</label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-[#747783]" />
                 <input
@@ -84,16 +84,16 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
                   type="date"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] text-sm text-[#191c1d] focus:outline-none focus:border-[#003d9b] focus:ring-1 focus:ring-[#003d9b] transition-all"
+                  className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] dark:bg-muted text-sm text-[#191c1d] dark:text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] uppercase font-bold text-[#747783] tracking-widest">Gender</label>
+              <label className="text-[10px] uppercase font-bold text-[#747783] dark:text-muted-foreground tracking-widest">Gender</label>
               <select
                 value={gender}
                 onChange={(e) => setGender(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-border bg-[#f8f9fa] text-sm text-[#191c1d] focus:outline-none focus:border-[#003d9b] focus:ring-1 focus:ring-[#003d9b] transition-all"
+                className="w-full h-9 px-3 rounded-md border border-border bg-[#f8f9fa] dark:bg-muted text-sm text-[#191c1d] dark:text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               >
                 <option value="male">Male</option>
                 <option value="female">Female</option>
@@ -103,7 +103,7 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-[#747783] tracking-widest">Phone Number (Optional)</label>
+            <label className="text-[10px] uppercase font-bold text-[#747783] dark:text-muted-foreground tracking-widest">Phone Number (Optional)</label>
             <div className="relative">
               <Phone className="absolute left-3 top-2.5 h-4 w-4 text-[#747783]" />
               <input
@@ -111,13 +111,13 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="(555) 123-4567"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] text-sm text-[#191c1d] focus:outline-none focus:border-[#003d9b] focus:ring-1 focus:ring-[#003d9b] transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] dark:bg-muted text-sm text-[#191c1d] dark:text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] uppercase font-bold text-[#747783] tracking-widest">Email Address (Optional)</label>
+            <label className="text-[10px] uppercase font-bold text-[#747783] dark:text-muted-foreground tracking-widest">Email Address (Optional)</label>
             <div className="relative">
               <Mail className="absolute left-3 top-2.5 h-4 w-4 text-[#747783]" />
               <input
@@ -125,7 +125,7 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="patient@example.com"
-                className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] text-sm text-[#191c1d] focus:outline-none focus:border-[#003d9b] focus:ring-1 focus:ring-[#003d9b] transition-all"
+                className="w-full h-9 pl-9 pr-3 rounded-md border border-border bg-[#f8f9fa] dark:bg-muted text-sm text-[#191c1d] dark:text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
               />
             </div>
           </div>
@@ -135,14 +135,14 @@ export default function PatientCreateModal({ open, onOpenChange }: PatientCreate
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="text-[#747783] border-border hover:bg-[#f8f9fa] font-bold"
+              className="text-[#747783] border-border hover:bg-[#f8f9fa] dark:hover:bg-muted/10 font-bold"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={createMutation.isPending}
-              className="bg-[#003d9b] hover:bg-[#00296d] text-white shadow-sm font-bold w-24"
+              className="bg-primary hover:opacity-90 text-white shadow-sm font-bold w-24"
             >
               {createMutation.isPending ? <Spinner size="sm" /> : 'Create'}
             </Button>

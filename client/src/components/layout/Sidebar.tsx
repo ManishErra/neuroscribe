@@ -9,6 +9,7 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('ns_access_token');
     window.location.href = '/login';
   };
 
@@ -30,7 +31,7 @@ export default function Sidebar() {
       >
         <div
           className={cn(
-            'rounded-xl bg-gradient-to-br from-[#003d9b] to-[#b2c5ff] flex items-center justify-center shadow-lg shadow-[#003d9b]/20 shrink-0 transition-all duration-200',
+            'rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0 transition-all duration-200',
             isCompact ? 'w-8 h-8' : 'w-9 h-9'
           )}
         >
@@ -58,7 +59,7 @@ export default function Sidebar() {
               'flex items-center gap-3 rounded-xl transition-colors',
               isCompact ? 'px-2 py-2 text-xs' : 'px-3 py-2.5 text-sm',
               isActive
-                ? 'bg-[#003d9b]/10 text-[#003d9b] font-medium shadow-sm'
+                ? 'bg-primary/10 text-primary font-medium shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
             )
           }
@@ -75,7 +76,7 @@ export default function Sidebar() {
               'flex items-center gap-3 rounded-xl transition-colors',
               isCompact ? 'px-2 py-2 text-xs' : 'px-3 py-2.5 text-sm',
               isActive
-                ? 'bg-[#003d9b]/10 text-[#003d9b] font-medium shadow-sm'
+                ? 'bg-primary/10 text-primary font-medium shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
             )
           }
@@ -92,7 +93,7 @@ export default function Sidebar() {
               'flex items-center gap-3 rounded-xl transition-colors',
               isCompact ? 'px-2 py-2 text-xs' : 'px-3 py-2.5 text-sm',
               isActive
-                ? 'bg-[#003d9b]/10 text-[#003d9b] font-medium shadow-sm'
+                ? 'bg-primary/10 text-primary font-medium shadow-sm'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/40'
             )
           }

@@ -96,7 +96,7 @@ export default function PatientDirectoryPage() {
                 setCurrentPage(1);
               }}
               className={cn(
-                'w-full bg-white border border-[#c3c6d6] rounded-full pl-9 pr-4 text-sm focus:outline-none focus:border-[#003d9b] transition-all',
+                'w-full bg-white border border-[#c3c6d6] rounded-full pl-9 pr-4 text-sm focus:outline-none focus:border-primary transition-all',
                 isCompact ? 'py-1.5' : 'py-2'
               )}
             />
@@ -226,7 +226,7 @@ export default function PatientDirectoryPage() {
                           <div className="h-8 w-8 rounded-full bg-[#e1e3e4] text-[#191c1d] flex items-center justify-center font-bold text-xs shrink-0">
                             {patient.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                           </div>
-                          <Link to={`/patients/${patient.id}/timeline`} className="font-semibold text-[#191c1d] hover:text-[#003d9b]">
+                          <Link to={`/patients/${patient.id}/timeline`} className="font-semibold text-[#191c1d] dark:text-[#e3e4e3] hover:text-primary">
                             {patient.name}
                           </Link>
                         </div>
@@ -246,7 +246,7 @@ export default function PatientDirectoryPage() {
                       <td className="px-6 py-4">
                         <Link 
                           to={`/patients/${patient.id}/timeline`}
-                          className="text-[#003d9b] font-medium text-xs hover:underline"
+                          className="text-primary font-medium text-xs hover:underline"
                         >
                           View Profile
                         </Link>

@@ -18,7 +18,7 @@ interface SettingsContextValue {
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
 const DEFAULT_SETTINGS: SettingsState = {
-  theme: 'dark',
+  theme: 'light',
   density: 'standard',
   aiRagEnabled: true,
   aiConfidenceLabels: true,
@@ -31,7 +31,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
     try {
       // 1. Theme
       const storedTheme = localStorage.getItem('ns_theme');
-      const theme: SettingsState['theme'] = (storedTheme === 'dark') ? 'dark' : 'dark'; // Guard: always dark for Day 31
+      const theme: SettingsState['theme'] = (storedTheme === 'light' || storedTheme === 'dark') ? storedTheme : 'light';
 
       // 2. Density
       const storedDensity = localStorage.getItem('ns_density');
@@ -110,10 +110,6 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
   }, [settings]);
 
   const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
-    if (key === 'theme' && value !== 'dark') {
-      console.warn(`Theme '${value}' is not supported in Day 31 implementation.`);
-      return;
-    }
 
     setSettings((prev) => {
       const next = { ...prev, [key]: value };

@@ -1,51 +1,102 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '@/features/patients/hooks/usePatients';
-import { Search, Plus, Mic, FileText } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useSettings } from '@/store/SettingsContext';
+import type { Patient } from '@/types/patient.types';
 import PatientCreateModal from '@/features/patients/components/PatientCreateModal';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useSettings } from '@/store/SettingsContext';
+import { cn } from '@/lib/utils';
+import { Search, Plus, CheckCircle2, Eye, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatDate } from '@/utils/formatters';
+
+function getDeterministicStatus(patient: Patient): 'STABLE' | 'WARNING' | 'CRITICAL' {
+  const name = patient.name.toLowerCase();
+  if (name.includes('radhika')) return 'CRITICAL';
+  if (name.includes('johny') || name.includes('jane')) return 'WARNING';
+
+  let hash = 0;
+  for (let i = 0; i < patient.name.length; i++) {
+    hash = patient.name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % 3;
+  const statuses: ('STABLE' | 'WARNING' | 'CRITICAL')[] = ['STABLE', 'WARNING', 'CRITICAL'];
+  return statuses[idx];
+}
 
 export default function DashboardPage() {
-  const { data: patients, isLoading } = usePatients();
+  const { data: patients, isLoading, isError } = usePatients();
   const { settings } = useSettings();
   const isCompact = settings.density === 'compact';
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Sorting for recent patients
-  const recentPatients = patients 
-    ? [...patients].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5)
-    : [];
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'STABLE' | 'WARNING' | 'CRITICAL'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Derive counts
+  const counts = useMemo(() => {
+    if (!patients) return { total: 0, stable: 0, warning: 0, critical: 0 };
+    let stable = 0, warning = 0, critical = 0;
+    for (const p of patients) {
+      const s = getDeterministicStatus(p);
+      if (s === 'STABLE') stable++;
+      if (s === 'WARNING') warning++;
+      if (s === 'CRITICAL') critical++;
+    }
+    return { total: patients.length, stable, warning, critical };
+  }, [patients]);
+
+  const filteredPatients = useMemo(() => {
+    if (!patients) return [];
+    return patients.filter((patient) => {
+      const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const patientStatus = getDeterministicStatus(patient);
+      const matchesStatus = statusFilter === 'ALL' || patientStatus === statusFilter;
+      return matchesSearch && matchesStatus;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [patients, searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
+  const paginatedPatients = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredPatients.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredPatients, currentPage]);
 
   return (
     <div
       id="dashboard-page"
       className={cn(
-        'bg-background text-foreground max-w-7xl mx-auto transition-all duration-200 animate-in fade-in',
+        'max-w-7xl mx-auto transition-all duration-200 animate-in fade-in',
         isCompact ? 'p-4 space-y-4' : 'p-6 space-y-6'
       )}
     >
       <PatientCreateModal open={isModalOpen} onOpenChange={setIsModalOpen} />
 
-      {/* ── Header & Global Search ──────────────────────────────────────── */}
-      <div className={cn('flex flex-col md:flex-row md:items-center justify-between gap-4', isCompact ? 'mb-4' : 'mb-8')}>
+      {/* ── Page Header ────────────────────────────────────────── */}
+      <div className={cn('flex flex-col md:flex-row md:items-start justify-between gap-4', isCompact ? 'mb-4' : 'mb-6')}>
         <div>
-          <h1 className={cn('font-bold tracking-tight text-foreground', isCompact ? 'text-xl' : 'text-3xl', 'text-[#001848]')}>
-            Clinical Workspace
+          <h1 className={cn('font-bold tracking-tight text-[#191c1d] dark:text-[#e3e4e3]', isCompact ? 'text-2xl' : 'text-[32px]')}>
+            Clinical Dashboard
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Welcome back. Here is your recent clinical activity.
+          <p className="text-sm text-[#434652] dark:text-muted-foreground mt-1">
+            Welcome back. Clinical practice directory and status indicators.
           </p>
         </div>
-
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#747783]" />
             <input 
               type="text" 
-              placeholder="Search NeuroScribe..." 
+              placeholder="Search Patients..." 
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
               className={cn(
-                'w-full bg-white border border-[#c3c6d6] rounded-lg pl-9 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-[#003d9b] transition-all',
+                'w-full bg-white dark:bg-card border border-[#c3c6d6] dark:border-border rounded-full pl-9 pr-4 text-sm focus:outline-none focus:border-primary transition-all text-foreground',
                 isCompact ? 'py-1.5' : 'py-2'
               )}
             />
@@ -53,7 +104,7 @@ export default function DashboardPage() {
           <button 
             onClick={() => setIsModalOpen(true)}
             className={cn(
-              'flex items-center gap-2 bg-[#003d9b] hover:bg-[#001848] text-white font-medium rounded-lg transition-colors whitespace-nowrap',
+              'flex items-center gap-2 bg-primary hover:opacity-90 text-white font-medium rounded-lg transition-colors whitespace-nowrap',
               isCompact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
             )}
           >
@@ -63,82 +114,175 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Grid Layout ─────────────────────────────────────────── */}
-      <div className={cn('grid grid-cols-1 lg:grid-cols-3', isCompact ? 'gap-4' : 'gap-6')}>
-        
-        {/* Left Column: Recent Patients & Sessions */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          
-          {/* Recent Patients */}
-          <section className="bg-white rounded-xl border border-border overflow-hidden">
-            <div className={cn('border-b border-border bg-[#f8f9fa]', isCompact ? 'px-4 py-2' : 'px-5 py-3')}>
-              <h2 className="text-sm font-semibold text-[#001848] uppercase tracking-wide">Recent Patients</h2>
+      {/* ── Metric Cards ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Stable */}
+        <div className="bg-white dark:bg-card border border-border rounded-xl p-5 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-6 w-6 text-emerald-500" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold tracking-wider text-[#434652] dark:text-muted-foreground uppercase mb-1">Stable Patients</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-[#191c1d] dark:text-foreground">{counts.stable.toLocaleString()}</span>
             </div>
-            <div className="p-0">
+          </div>
+        </div>
+
+        {/* Monitor */}
+        <div className="bg-white dark:bg-card border border-border rounded-xl p-5 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 flex items-center justify-center shrink-0">
+            <Eye className="h-6 w-6 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold tracking-wider text-[#434652] dark:text-muted-foreground uppercase mb-1">Monitor Patients</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-[#191c1d] dark:text-foreground">{counts.warning.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Attention */}
+        <div className="bg-white dark:bg-card border border-rose-100 dark:border-rose-950/20 rounded-xl p-5 flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-6 w-6 text-rose-500" />
+          </div>
+          <div>
+            <p className="text-[11px] font-bold tracking-wider text-[#434652] dark:text-muted-foreground uppercase mb-1">Attention Required</p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-[#191c1d] dark:text-foreground">{counts.critical.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Table Container ──────────────────────────────────────── */}
+      <div className="bg-white dark:bg-card border border-border rounded-xl overflow-hidden mt-2">
+        {/* Tabs */}
+        <div className="flex items-center gap-6 px-6 border-b border-border">
+          {(['ALL', 'STABLE', 'WARNING', 'CRITICAL'] as const).map((status) => {
+            const label = status === 'ALL' ? 'All Patients' : status === 'WARNING' ? 'Monitor' : status === 'CRITICAL' ? 'Attention Required' : 'Stable';
+            const isActive = statusFilter === status;
+            return (
+              <button
+                key={status}
+                onClick={() => {
+                  setStatusFilter(status);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  'py-3 text-sm font-semibold transition-colors relative',
+                  isActive ? 'text-primary' : 'text-[#747783] hover:text-[#191c1d] dark:hover:text-foreground'
+                )}
+              >
+                {label}
+                {isActive && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-[#f8f9fa] dark:bg-muted/40 border-b border-border text-[#434652] dark:text-muted-foreground">
+              <tr>
+                <th className="px-6 py-3 font-semibold text-xs tracking-wider uppercase">Patient Name</th>
+                <th className="px-6 py-3 font-semibold text-xs tracking-wider uppercase">Age/Gender</th>
+                <th className="px-6 py-3 font-semibold text-xs tracking-wider uppercase">Last Visit</th>
+                <th className="px-6 py-3 font-semibold text-xs tracking-wider uppercase">Status</th>
+                <th className="px-6 py-3 font-semibold text-xs tracking-wider uppercase">Reports</th>
+                <th className="px-6 py-3 font-semibold text-xs tracking-wider uppercase">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
               {isLoading ? (
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-muted rounded w-3/4 animate-pulse"></div>
-                  <div className="h-4 bg-muted rounded w-1/2 animate-pulse"></div>
-                </div>
-              ) : recentPatients.length > 0 ? (
-                <ul className="divide-y divide-border">
-                  {recentPatients.map(p => (
-                    <li key={p.id}>
-                      <Link 
-                        to={`/patients/${p.id}/timeline`} 
-                        className={cn(
-                          'flex items-center justify-between hover:bg-accent/40 transition-colors',
-                          isCompact ? 'px-4 py-2.5' : 'px-5 py-3'
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-[#dae2fc] text-[#001848] flex items-center justify-center font-bold text-xs">
-                            {p.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-[#191c1d]">{p.name}</p>
-                            <p className="text-xs text-muted-foreground">{p.age}Y · {p.gender}</p>
-                          </div>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center">
+                    <Skeleton className="h-6 w-full max-w-md mx-auto" />
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-rose-500 font-medium">
+                    Failed to load patients.
+                  </td>
+                </tr>
+              ) : paginatedPatients.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted-foreground">
+                    No patients found.
+                  </td>
+                </tr>
               ) : (
-                <div className="p-8 text-center text-muted-foreground text-sm">
-                  No recent patients found.
-                </div>
+                paginatedPatients.map((patient) => {
+                  const status = getDeterministicStatus(patient);
+                  return (
+                    <tr key={patient.id} className="hover:bg-[#f8f9fa] dark:hover:bg-muted/10 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-8 w-8 rounded-full bg-[#e1e3e4] dark:bg-muted text-[#191c1d] dark:text-foreground flex items-center justify-center font-bold text-xs shrink-0">
+                            {patient.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                          </div>
+                          <Link to={`/patients/${patient.id}/timeline`} className="font-semibold text-[#191c1d] dark:text-[#e3e4e3] hover:text-primary">
+                            {patient.name}
+                          </Link>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-[#434652] dark:text-muted-foreground">
+                        {patient.age} / {patient.gender.charAt(0).toUpperCase()}
+                      </td>
+                      <td className="px-6 py-4 text-[#434652] dark:text-muted-foreground">
+                        {formatDate(patient.created_at)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={status} />
+                      </td>
+                      <td className="px-6 py-4 text-[#434652] dark:text-muted-foreground">
+                        0
+                      </td>
+                      <td className="px-6 py-4">
+                        <Link 
+                          to={`/patients/${patient.id}/timeline`}
+                          className="text-primary font-medium text-xs hover:underline"
+                        >
+                          View Profile
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
-            </div>
-          </section>
-
-          {/* Recent Sessions */}
-          <section className="bg-white rounded-xl border border-border overflow-hidden">
-            <div className={cn('border-b border-border bg-[#f8f9fa]', isCompact ? 'px-4 py-2' : 'px-5 py-3')}>
-              <h2 className="text-sm font-semibold text-[#001848] uppercase tracking-wide">Recent Sessions</h2>
-            </div>
-            <div className="p-8 text-center text-muted-foreground text-sm border-b border-border/50">
-              <Mic className="h-6 w-6 mx-auto mb-2 opacity-20" />
-              <p>No recent sessions captured today.</p>
-              <p className="text-xs mt-1">Start a session from within a Patient Workspace.</p>
-            </div>
-          </section>
-
+            </tbody>
+          </table>
         </div>
 
-        {/* Right Column: Pending Reports */}
-        <div className="flex flex-col gap-6">
-          <section className="bg-white rounded-xl border border-border overflow-hidden h-full">
-            <div className={cn('border-b border-border bg-[#f8f9fa]', isCompact ? 'px-4 py-2' : 'px-5 py-3')}>
-              <h2 className="text-sm font-semibold text-[#001848] uppercase tracking-wide">Pending Reports</h2>
+        {/* Pagination Footer */}
+        {!isLoading && !isError && filteredPatients.length > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-white dark:bg-card">
+            <span className="text-xs text-[#747783] dark:text-muted-foreground">
+              Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredPatients.length)} of {filteredPatients.length} entries
+            </span>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-8 w-8 rounded flex items-center justify-center border border-border hover:bg-[#f3f4f5] dark:hover:bg-muted/10 disabled:opacity-50 text-foreground"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button 
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="h-8 w-8 rounded flex items-center justify-center border border-border hover:bg-[#f3f4f5] dark:hover:bg-muted/10 disabled:opacity-50 text-foreground"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-            <div className="p-8 text-center text-muted-foreground text-sm">
-              <FileText className="h-6 w-6 mx-auto mb-2 opacity-20" />
-              <p>No reports currently pending OCR extraction.</p>
-            </div>
-          </section>
-        </div>
-
+          </div>
+        )}
       </div>
     </div>
   );

@@ -9,8 +9,8 @@ import type { AskResponse } from '../types/search.types';
 export function useAsk() {
   const { settings } = useSettings();
 
-  return useMutation<AskResponse, Error, string>({
-    mutationFn: async (question: string) => {
+  return useMutation<AskResponse, Error, { question: string; patientId: string }>({
+    mutationFn: async ({ question, patientId }) => {
       if (!settings.aiRagEnabled) {
         throw new Error('Clinical Intelligence Engine is disabled. Enable RAG under Settings.');
       }
@@ -20,7 +20,7 @@ export function useAsk() {
         throw new Error('Please enter a clinical question.');
       }
 
-      return postAsk(cleanQuestion);
+      return postAsk(cleanQuestion, patientId);
     },
   });
 }
