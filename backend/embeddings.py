@@ -1,5 +1,5 @@
 from sentence_transformers import SentenceTransformer
-
+import os
 from typing import List, Dict, Any
 
 from sqlalchemy import text as sql_text
@@ -12,9 +12,51 @@ from sqlalchemy import text as sql_text
 # Model loaded once globally
 # Prevents reloading on every request
 
-model = SentenceTransformer(
-    "all-MiniLM-L6-v2"
-)
+import logging
+
+logger = logging.getLogger("embeddings")
+
+RAG_ENABLED = True
+model = None
+
+APP_ENV = os.getenv("APP_ENV", "development").lower()
+
+def _load_model():
+    global model, RAG_ENABLED
+    try:
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+        logger.info("SentenceTransformer model loaded successfully.")
+    except Exception as e:
+        err_str = str(e).lower()
+        is_network = any(k in err_str for k in ["connection", "timeout", "network", "offline", "maxretries", "unreachable", "getaddrinfo", "host"])
+        
+        if is_network:
+            advice = (
+                "Ensure an active internet connection on first startup to let the "
+                "application download the model 'all-MiniLM-L6-v2', or manually pre-download the model "
+                "and place it in the Hugging Face cache directory."
+            )
+        else:
+            advice = (
+                "Clear the Hugging Face cache at C:\\Users\\Manish\\.cache\\huggingface\\hub\\models--sentence-transformers--all-MiniLM-L6-v2 "
+                "and restart the application to trigger a clean redownload."
+            )
+
+        error_message = (
+            f"Embedding model load failed: {e}\n"
+            f"Classification: {'Missing Model / Network Error' if is_network else 'Corrupted Model or System Error'}\n"
+            f"Remediation Guidance: {advice}"
+        )
+
+        if APP_ENV == "production":
+            logger.error("FATAL: " + error_message)
+            raise RuntimeError(error_message)
+        else:
+            RAG_ENABLED = False
+            logger.warning("WARNING: " + error_message)
+            logger.warning("Embedding model unavailable. RAG disabled.")
+
+_load_model()
 
 
 # =========================================
@@ -35,6 +77,9 @@ def generate_embedding(
         raise ValueError(
             "Cannot embed empty text"
         )
+
+    if not RAG_ENABLED or model is None:
+        raise RuntimeError("Embedding model unavailable. RAG disabled.")
 
     try:
 

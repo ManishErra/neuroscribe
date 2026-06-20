@@ -267,20 +267,28 @@ async def run_verification():
             print(f"FAIL: FastAPI event loop was blocked by the slow OCR task.")
 
         # ----------------------------------------------------
-        # TEST E & F: Open original document / static access
+        # TEST E: Authenticated Owner Download
         # ----------------------------------------------------
-        print("\n--- Test E & F: Static serving access ---")
-        # Access the relative static URL path
-        static_url = f"/{report_pdf_file_path}"
-        print(f"Attempting to fetch static file from: {static_url}")
-        res_static = await ac.get(static_url)
-        print(f"Static serving response status: {res_static.status_code}")
-        if res_static.status_code == 200 and res_static.content == mock_pdf_content:
-            print("PASS: Original PDF document retrieved from static server match.")
+        print("\n--- Test E: Secure File Download (Owner) ---")
+        res_download = await ac.get(f"/reports/{report_pdf_id}/download", headers=doc_a_headers)
+        if res_download.status_code == 200 and res_download.content == mock_pdf_content:
+            print("PASS: Owner successfully downloaded the correct file via secure endpoint.")
             matrix["E"] = "PASS"
+        else:
+            print(f"FAIL: Secure download returned {res_download.status_code}")
+
+        # ----------------------------------------------------
+        # TEST F: Unauthorized & Non-Owner Access
+        # ----------------------------------------------------
+        print("\n--- Test F: Secure Download Isolation ---")
+        res_unauth = await ac.get(f"/reports/{report_pdf_id}/download")
+        res_non_owner = await ac.get(f"/reports/{report_pdf_id}/download", headers=doc_b_headers)
+
+        if res_unauth.status_code == 401 and res_non_owner.status_code == 404:
+            print("PASS: Medical files are correctly isolated from unauthenticated users and non-owners.")
             matrix["F"] = "PASS"
         else:
-            print(f"FAIL: Static serve returned status {res_static.status_code}")
+            print(f"FAIL: Isolation breach. Unauth: {res_unauth.status_code}, Non-owner: {res_non_owner.status_code}")
 
         # ----------------------------------------------------
         # TEST H: Ownership isolation

@@ -388,6 +388,11 @@ def add_report_embeddings(
     if not owner_id or not owner_id.strip():
         raise ValueError("owner_id cannot be empty")
 
+    from embeddings import RAG_ENABLED
+    if not RAG_ENABLED:
+        logger.warning("RAG is disabled because the embedding model is unavailable. Skipping embedding generation.")
+        return 0
+
     records = build_report_embeddings(report_text)
 
     if not records:
@@ -452,6 +457,11 @@ def search_similar_chunks(
 
     if top_k < 1:
         raise ValueError("top_k must be at least 1")
+
+    from embeddings import RAG_ENABLED
+    if not RAG_ENABLED:
+        logger.warning("RAG is disabled because the embedding model is unavailable. Returning empty search results.")
+        return []
 
     if _index is None or _index.ntotal == 0:
 
@@ -580,6 +590,78 @@ def search_similar_chunks(
     )
 
     return results
+
+
+def remove_vectors_for_report(report_id: str) -> int:
+    """Remove all FAISS vectors belonging to a report, synchronized with metadata.
+
+    This implements the safe deletion protocol verified by the Day 37C FAISS
+    feasibility audit. All operations execute atomically in a single synchronous
+    block to prevent metadata desynchronization.
+
+    Args:
+        report_id: The report whose chunks should be removed.
+
+    Returns:
+        Number of vectors removed (0 if none found).
+
+    Raises:
+        RuntimeError: If index/metadata integrity cannot be verified post-deletion.
+    """
+    global _index
+    global _chunk_metadata
+
+    if _index is None or _index.ntotal == 0:
+        return 0
+
+    if not report_id or not report_id.strip():
+        raise ValueError("report_id cannot be empty")
+
+    # Step 1 — Identify ordinal positions of all chunks for this report
+    positions = [
+        i for i, m in enumerate(_chunk_metadata)
+        if m.get("report_id") == report_id
+    ]
+
+    if not positions:
+        logger.info("No FAISS vectors found for report_id=%s", report_id)
+        return 0
+
+    # Step 2 — Remove from FAISS index
+    id_array = np.array(positions, dtype=np.int64)
+    id_selector = faiss.IDSelectorArray(id_array)
+    n_removed = _index.remove_ids(id_selector)
+
+    # Step 3 — Compact metadata list in the same synchronous block
+    positions_set = set(positions)
+    _chunk_metadata[:] = [
+        m for i, m in enumerate(_chunk_metadata)
+        if i not in positions_set
+    ]
+
+    # Step 4 — Save immediately (both index and metadata must be in sync)
+    save_vector_store()
+
+    # Step 5 — Verify integrity
+    if _index.ntotal != len(_chunk_metadata):
+        error_msg = (
+            f"CRITICAL: FAISS/metadata desync after deletion for report {report_id}. "
+            f"index.ntotal={_index.ntotal}, len(metadata)={len(_chunk_metadata)}. "
+            f"Reinitializing store to prevent further corruption."
+        )
+        logger.error(error_msg)
+        initialize_vector_store()
+        save_vector_store()
+        raise RuntimeError(error_msg)
+
+    logger.info(
+        "Removed %d vectors for report_id=%s. Index now has %d vectors.",
+        len(positions),
+        report_id,
+        _index.ntotal,
+    )
+
+    return len(positions)
 
 
 load_vector_store()

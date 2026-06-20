@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 import json
 
 from report_vector_store import search_similar_chunks
 from llm_service import generate_answer
 from auth_utils import get_current_user
+from rate_limiter import rag_limiter
 
 router = APIRouter(
     prefix="/ask",
@@ -21,8 +22,15 @@ class AskRequest(BaseModel):
 @router.post("/")
 def ask_question(
     request: AskRequest,
+    http_request: Request,
     current_user = Depends(get_current_user),
 ):
+    content_length = http_request.headers.get('content-length')
+    if content_length and int(content_length) > 20 * 1024:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=413, detail="Request payload exceeds 20 KB limit")
+
+    rag_limiter.check(http_request)
 
     # STEP 1 — retrieve relevant chunks
     results = search_similar_chunks(

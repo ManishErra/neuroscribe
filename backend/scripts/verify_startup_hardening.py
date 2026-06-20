@@ -2,6 +2,17 @@ import sys
 import os
 from pathlib import Path
 
+# Override DATABASE_URL for local sqlite testing
+os.environ["DATABASE_URL"] = "sqlite:///./verification_test.db"
+
+# Register CITEXT compiler fallback for SQLite
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import CITEXT
+
+@compiles(CITEXT, "sqlite")
+def compile_citext_sqlite(element, compiler, **kw):
+    return "TEXT"
+
 # Add backend directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 

@@ -8,9 +8,14 @@ import os
 _env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=_env_path)
 
+db_url = os.getenv("DATABASE_URL", "")
+connect_args = {}
+if "postgresql" in db_url or "postgres" in db_url:
+    connect_args["sslmode"] = "require"
+
 engine = create_engine(
-    os.getenv("DATABASE_URL"),
-    connect_args={"sslmode": "require"}
+    db_url,
+    connect_args=connect_args
 )
 
 SessionLocal = sessionmaker(bind=engine)

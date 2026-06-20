@@ -4,7 +4,8 @@ from fastapi import (
     File,
     HTTPException,
     Depends,
-    Form
+    Form,
+    Request
 )
 
 from groq import Groq
@@ -24,6 +25,16 @@ import uuid
 
 from dotenv import load_dotenv
 from auth_utils import get_current_user
+from rate_limiter import audio_limiter
+from pydantic import BaseModel
+
+class MalwareScanResult(BaseModel):
+    clean: bool
+    reason: str
+
+async def scan_file_for_malware(file: UploadFile) -> MalwareScanResult:
+    # Future ClamAV integration point
+    return MalwareScanResult(clean=True, reason="ClamAV integration pending")
 
 
 # =========================================
@@ -189,11 +200,19 @@ async def upload_audio(
     session_id: str = Form(...),
 
     file: UploadFile = File(...),
+    
+    request: Request = None,
 
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user)
 
 ):
+    if request:
+        audio_limiter.check(request)
+
+    scan_result = await scan_file_for_malware(file)
+    if not scan_result.clean:
+        raise HTTPException(status_code=400, detail=f"Malware scan failed: {scan_result.reason}")
 
     # =====================================
     # VALIDATE SESSION

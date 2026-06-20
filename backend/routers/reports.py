@@ -11,16 +11,26 @@ from fastapi import (
     Form,
     HTTPException,
     UploadFile,
+    Request,
 )
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DBSession
 
 from database import get_db
-from models import Patient, Report
+from models import Patient, Report, User
 from report_ocr_extract import extract_report_text
 from fastapi.concurrency import run_in_threadpool
-from report_vector_store import add_report_embeddings
+from report_vector_store import add_report_embeddings, remove_vectors_for_report
 from auth_utils import get_current_user
+from audit_logger import log_audit
+
+class MalwareScanResult(BaseModel):
+    clean: bool
+    reason: str
+
+async def scan_file_for_malware(file: UploadFile) -> MalwareScanResult:
+    # Future ClamAV integration point
+    return MalwareScanResult(clean=True, reason="ClamAV integration pending")
 
 router = APIRouter(prefix="/reports", tags=["Reports"], dependencies=[Depends(get_current_user)])
 
@@ -290,9 +300,13 @@ def create_report(data: ReportCreate, db: DBSession = Depends(get_db), current_u
 async def upload_report(
     patient_id: str = Form(...),
     file: UploadFile = File(...),
+    request: Request = None,
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
+    scan_result = await scan_file_for_malware(file)
+    if not scan_result.clean:
+        raise HTTPException(status_code=400, detail=f"Malware scan failed: {scan_result.reason}")
 
     # =====================================
     # VALIDATE PATIENT
@@ -348,6 +362,17 @@ async def upload_report(
             detail="Empty file.",
         )
 
+    # Validate Magic Bytes
+    if mime_type == "application/pdf":
+        if not contents.startswith(b"%PDF"):
+            raise HTTPException(400, "Invalid file format. File content does not match PDF signature.")
+    elif mime_type == "image/png":
+        if not contents.startswith(b"\x89PNG\r\n\x1a\n"):
+            raise HTTPException(400, "Invalid file format. File content does not match PNG signature.")
+    elif mime_type in ["image/jpeg", "image/jpg"]:
+        if not contents.startswith(b"\xff\xd8\xff"):
+            raise HTTPException(400, "Invalid file format. File content does not match JPEG signature.")
+
     # =====================================
     # WRITE FILE
     # =====================================
@@ -390,6 +415,7 @@ async def upload_report(
         db.add(report)
         db.commit()
         db.refresh(report)
+        log_audit("report_upload", current_user.id, str(report.id), request, {"patient_id": patient_id, "filename": original_name})
     except Exception as exc:
         db.rollback()
         cleanup_report_file(absolute_path)
@@ -406,6 +432,67 @@ async def upload_report(
 
 
 # =========================================
+from fastapi.responses import FileResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import jwt, JWTError
+
+security_bearer = HTTPBearer(auto_error=False)
+
+def get_current_user_for_download(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer),
+    token: Optional[str] = None,
+    db: DBSession = Depends(get_db)
+) -> User:
+    actual_token = None
+    if credentials:
+        actual_token = credentials.credentials
+    elif token:
+        actual_token = token
+
+    if not actual_token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    from auth_utils import JWT_SECRET, JWT_ALGORITHM
+    try:
+        payload = jwt.decode(actual_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        user = db.query(User).filter(User.id == uuid.UUID(user_id)).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+@router.get("/{report_id}/download")
+def download_report_file(
+    report_id: str,
+    db: DBSession = Depends(get_db),
+    current_user = Depends(get_current_user_for_download)
+):
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    patient = db.query(Patient).filter(
+        Patient.id == report.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    absolute_path = resolve_uploaded_report_disk_path(report.file_path)
+    if not os.path.exists(absolute_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(
+        absolute_path,
+        media_type=report.mime_type or "application/octet-stream",
+        filename=report.original_filename or "report"
+    )
+
+# =========================================
 # REPORT OCR (Day 12)
 # =========================================
 
@@ -416,6 +503,7 @@ async def upload_report(
 )
 async def run_report_ocr(
     report_id: str,
+    request: Request = None,
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -488,6 +576,7 @@ async def run_report_ocr(
         report.ocr_text = None
         db.commit()
         db.refresh(report)
+        log_audit("ocr_execution", current_user.id, str(report.id), request, {"status": "failed", "error": err})
         return ReportOcrResponse(
             id=str(report.id),
             patient_id=str(report.patient_id),
@@ -508,6 +597,7 @@ async def run_report_ocr(
     report.ocr_error = None
     db.commit()
     db.refresh(report)
+    log_audit("ocr_execution", current_user.id, str(report.id), request, {"status": "success", "char_count": len(extracted)})
 
     try:
         add_report_embeddings(
@@ -585,6 +675,7 @@ def get_report(report_id: str, db: DBSession = Depends(get_db), current_user = D
 )
 def delete_report(
     report_id: str,
+    request: Request = None,
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -622,9 +713,22 @@ def delete_report(
             pass
 
     # =====================================
+    # CLEANUP FAISS VECTORS (Day 37C)
+    # Non-fatal: log but do not block DB deletion on FAISS failure.
+    # =====================================
+    try:
+        removed = remove_vectors_for_report(str(report.id))
+        print(f"[DELETE] Removed {removed} FAISS vectors for report {report.id}")
+    except Exception as faiss_exc:
+        print(f"[WARN] FAISS vector cleanup failed for report {report.id} (non-fatal): {faiss_exc}")
+
+    # =====================================
     # DELETE ROW
     # =====================================
+    patient_id = str(report.patient_id)
     db.delete(report)
     db.commit()
+
+    log_audit("report_deletion", current_user.id, report_id, request, {"patient_id": patient_id})
 
     return None

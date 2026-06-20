@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel, EmailStr, field_validator
@@ -11,6 +11,8 @@ from auth_utils import (
     create_access_token,
     get_current_user
 )
+from rate_limiter import register_limiter, login_limiter
+from audit_logger import log_audit
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -55,7 +57,10 @@ class LoginResponse(BaseModel):
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: UserRegisterRequest, db: Session = Depends(get_db)):
+def register(payload: UserRegisterRequest, request: Request, db: Session = Depends(get_db)):
+    # Rate limit check
+    register_limiter.check(request)
+
     # 1. Normalize email
     normalized_email = payload.email.strip().lower()
     
@@ -87,13 +92,17 @@ def register(payload: UserRegisterRequest, db: Session = Depends(get_db)):
     )
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: UserLoginRequest, db: Session = Depends(get_db)):
+def login(payload: UserLoginRequest, request: Request, db: Session = Depends(get_db)):
+    # Rate limit check
+    login_limiter.check(request)
+
     # 1. Normalize email
     normalized_email = payload.email.strip().lower()
     
     # 2. Query user
     user = db.query(User).filter(User.email == normalized_email).first()
     if not user:
+        log_audit("login_failure", None, "system", request, {"email": normalized_email, "reason": "User not found"})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -101,6 +110,7 @@ def login(payload: UserLoginRequest, db: Session = Depends(get_db)):
     
     # 3. Verify password
     if not verify_password(payload.password, user.hashed_password):
+        log_audit("login_failure", user.id, str(user.id), request, {"email": normalized_email, "reason": "Incorrect password"})
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -109,6 +119,7 @@ def login(payload: UserLoginRequest, db: Session = Depends(get_db)):
     # 4. Generate JWT
     token = create_access_token(user_id=user.id, email=user.email, name=user.name)
     
+    log_audit("login_success", user.id, str(user.id), request, {"email": normalized_email})
     return LoginResponse(
         access_token=token,
         token_type="bearer"

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, ValidationError
 from groq import Groq
 from sqlalchemy.orm import Session as DBSession
@@ -7,6 +7,8 @@ from sqlalchemy import text as sql_text
 from database import get_db
 from models import Note, Transcript, Session as SessionModel, Patient
 from auth_utils import get_current_user
+from rate_limiter import note_limiter
+from audit_logger import log_audit
 
 from prompts import (
     SYSTEM_PROMPT,
@@ -113,9 +115,16 @@ def clean_llm_json(text: str) -> str:
 @router.post("/generate-note")
 def generate_note(
     req: NoteRequest,
+    request: Request,
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
+    content_length = request.headers.get('content-length')
+    if content_length and int(content_length) > 100 * 1024:
+        raise HTTPException(status_code=413, detail="Request payload exceeds 100 KB limit")
+
+    note_limiter.check(request)
+    log_audit("note_generation", current_user.id, req.transcript_id, request, {"patient_name": req.patient_name})
 
     transcript = db.query(
         Transcript
@@ -142,12 +151,26 @@ def generate_note(
     if not patient:
         raise HTTPException(404, "Transcript not found")
 
-    if not transcript.raw_text:
+    # R01 — Day 38: Guard against whitespace-only transcripts (not just None/empty)
+    if not transcript.raw_text or not transcript.raw_text.strip():
 
         raise HTTPException(
             status_code=400,
             detail="Transcript is empty"
         )
+
+    # =========================================
+    # R02 — Day 38: Truncate large transcripts before LLM call
+    # Prevents context-window overflow on very long sessions.
+    # =========================================
+
+    MAX_TRANSCRIPT_CHARS = 8000
+    raw_transcript = transcript.raw_text
+    transcript_truncated = False
+    if len(raw_transcript) > MAX_TRANSCRIPT_CHARS:
+        raw_transcript = raw_transcript[:MAX_TRANSCRIPT_CHARS]
+        transcript_truncated = True
+        print(f"[WARN] Transcript {transcript.id} truncated to {MAX_TRANSCRIPT_CHARS} chars for LLM (original: {len(transcript.raw_text)})")
 
     # =========================================
     # CALL LLM
@@ -167,7 +190,7 @@ def generate_note(
                 {
                     "role": "user",
                     "content": build_user_prompt(
-                        transcript.raw_text,
+                        raw_transcript,
                         req.patient_name,
                         req.patient_age
                     )
@@ -273,7 +296,9 @@ def generate_note(
 
         "ai_draft": validated_note.model_dump(),
 
-        "flagged_phrases": flagged
+        "flagged_phrases": flagged,
+
+        "transcript_truncated": transcript_truncated
     }
 
 
