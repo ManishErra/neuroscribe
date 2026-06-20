@@ -7,35 +7,33 @@
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import ProtectedRoute from '@/auth/ProtectedRoute';
 import LoginPage from '@/auth/LoginPage';
+import RegisterPage from '@/auth/RegisterPage';
 import PageShell from '@/components/layout/PageShell';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 import DashboardPage from '@/pages/Dashboard/DashboardPage';
 import PatientDirectoryPage from '@/pages/PatientDirectory/PatientDirectoryPage';
 import PatientProfilePage from '@/pages/PatientProfile/PatientProfilePage';
 import OverviewTab from '@/pages/PatientProfile/tabs/OverviewTab';
+import TimelineTab from '@/pages/PatientProfile/tabs/TimelineTab';
 import SessionsTab from '@/pages/PatientProfile/tabs/SessionsTab';
 import ReportsTab from '@/pages/PatientProfile/tabs/ReportsTab';
+import AskTab from '@/pages/PatientProfile/tabs/AskTab';
 import SessionDetailPage from '@/pages/SessionDetail/SessionDetailPage';
 import SettingsPage from '@/pages/Settings/SettingsPage';
-import SearchPage from '@/pages/Search/SearchPage';
+
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
-// ── Phase 2–6 stubs ──────────────────────────────────────────────────────────
-// These placeholders will be replaced with real pages in their respective phases.
-function ComingSoon({ label }: { label: string }) {
-  return (
-    <div className="p-6 text-sm text-muted-foreground">
-      <span className="font-medium text-foreground">{label}</span>
-      {' '}— implemented in a future phase.
-    </div>
-  );
-}
+// ── Phase 2–6 placeholders removed as functionality is complete ────────────
 
 const router = createBrowserRouter([
   // ── Public routes ────────────────────────────────────────────────────────
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/register',
+    element: <RegisterPage />,
   },
 
   // ── Protected routes — all inside PageShell ──────────────────────────────
@@ -76,12 +74,12 @@ const router = createBrowserRouter([
           </ErrorBoundary>
         ),
         children: [
-          { index: true,          element: <Navigate to="overview" replace /> },
+          { index: true,          element: <Navigate to="timeline" replace /> },
+          { path: 'timeline',     element: <TimelineTab /> },
           { path: 'overview',     element: <OverviewTab /> },
           { path: 'sessions',     element: <SessionsTab /> },
           { path: 'reports',      element: <ReportsTab /> },
-          { path: 'insights',     element: <ComingSoon label="Insights Tab" /> },
-          { path: 'timeline',     element: <ComingSoon label="Timeline Tab" /> },
+          { path: 'ask',          element: <AskTab /> },
         ],
       },
 
@@ -95,15 +93,6 @@ const router = createBrowserRouter([
         ),
       },
 
-      // Semantic Search (Phase 6)
-      {
-        path: 'search',
-        element: (
-          <ErrorBoundary>
-            <SearchPage />
-          </ErrorBoundary>
-        ),
-      },
 
       // Settings (Day 31)
       {

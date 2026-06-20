@@ -70,6 +70,7 @@ class ChunkMetadata(TypedDict):
     """Metadata for one indexed report chunk."""
 
     report_id: str
+    patient_id: str
     chunk_index: int
     chunk_text: str
     chunk_length: NotRequired[int]
@@ -82,6 +83,7 @@ class SimilarChunkResult(TypedDict):
     """One chunk returned from similarity search."""
 
     report_id: str
+    patient_id: str
     chunk_index: int
     chunk_text: str
     similarity_score: float
@@ -155,12 +157,15 @@ def _parse_metadata(raw: object) -> List[ChunkMetadata]:
             continue
 
         report_id = item.get("report_id")
+        patient_id = item.get("patient_id")
         chunk_index = item.get("chunk_index")
         chunk_text = item.get("chunk_text")
 
         if (
             not isinstance(report_id, str)
             or not report_id.strip()
+            or not isinstance(patient_id, str)
+            or not patient_id.strip()
             or not isinstance(chunk_index, int)
             or not isinstance(chunk_text, str)
         ):
@@ -168,6 +173,7 @@ def _parse_metadata(raw: object) -> List[ChunkMetadata]:
 
         meta: ChunkMetadata = {
             "report_id": report_id,
+            "patient_id": patient_id,
             "chunk_index": chunk_index,
             "chunk_text": chunk_text,
         }
@@ -204,6 +210,7 @@ def _result_from_metadata(
 
     result: SimilarChunkResult = {
         "report_id": meta["report_id"],
+        "patient_id": meta["patient_id"],
         "chunk_index": meta["chunk_index"],
         "chunk_text": meta["chunk_text"],
         "similarity_score": round(similarity_score, 4),
@@ -375,6 +382,7 @@ def load_vector_store() -> None:
 
 def add_report_embeddings(
     report_id: str,
+    patient_id: str,
     report_text: str,
     owner_id: str,
 ) -> int:
@@ -427,6 +435,7 @@ def add_report_embeddings(
         _chunk_metadata.append(
             {
                 "report_id": report_id,
+                "patient_id": patient_id,
                 "chunk_index": record["chunk_index"],
                 "chunk_text": record["chunk_text"],
                 "chunk_length": record["chunk_length"],
@@ -447,6 +456,7 @@ def search_similar_chunks(
     *,
     similarity_threshold: float = SIMILARITY_THRESHOLD,
     owner_id: Optional[str] = None,
+    patient_id: Optional[str] = None,
 ) -> List[SimilarChunkResult]:
     """
     Hybrid semantic + keyword boosted retrieval.
@@ -519,6 +529,13 @@ def search_similar_chunks(
         if owner_id is not None:
             chunk_owner = meta.get("owner_id")
             if chunk_owner is None or str(chunk_owner) != str(owner_id):
+                continue
+
+        # CRITICAL PATIENT ISOLATION GATE:
+        # Enforce that no chunk is returned unless patient_id matches.
+        if patient_id is not None:
+            chunk_patient = meta.get("patient_id")
+            if chunk_patient is None or str(chunk_patient) != str(patient_id):
                 continue
 
         # De-duplicate by normalized chunk text to prevent duplicate reports crowding out results

@@ -15,6 +15,7 @@ router = APIRouter(
 
 
 class AskRequest(BaseModel):
+    patient_id: str
     question: str
     top_k: int = 5
 
@@ -30,6 +31,17 @@ def ask_question(
         from fastapi import HTTPException
         raise HTTPException(status_code=413, detail="Request payload exceeds 20 KB limit")
 
+    from database import get_db
+    from models import Patient
+    db = next(get_db())
+    patient = db.query(Patient).filter(
+        Patient.id == request.patient_id,
+        Patient.owner_id == current_user.id
+    ).first()
+    if not patient:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Patient not found or access denied")
+
     rag_limiter.check(http_request)
 
     # STEP 1 — retrieve relevant chunks
@@ -37,6 +49,7 @@ def ask_question(
         query=request.question,
         top_k=request.top_k,
         owner_id=str(current_user.id),
+        patient_id=str(request.patient_id),
     )
 
     # STEP 2 — no context found

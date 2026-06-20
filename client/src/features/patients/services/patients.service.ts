@@ -17,3 +17,10 @@ export async function fetchPatients(): Promise<Patient[]> {
 export async function fetchPatient(patientId: string): Promise<Patient> {
   return client.get(`/patients/${patientId}`);
 }
+
+/**
+ * Create a new patient.
+ */
+export async function createPatient(data: { name: string; age: number; gender: string }): Promise<Patient> {
+  return client.post('/patients/', data);
+}

@@ -1,7 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/set-state-in-effect, react-hooks/purity */
-// SessionDetailPage — unified clinical consultations workspace.
-// Architecture ref: frontend_architecture.md §4, §5.4, §8, §16.1
-
 import { useParams, Link } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
 import { useSession } from '@/features/sessions/hooks/useSession';
@@ -23,23 +20,19 @@ export default function SessionDetailPage() {
   const { settings } = useSettings();
   const isCompact = settings.density === 'compact';
 
-  // Queries
   const { data: patient, isLoading: isPatientLoading } = usePatient(patientId);
   const { data: session, isLoading: isSessionLoading, isError: isSessionError } = useSession(sessionId);
 
-  // Mutations
   const uploadAudioMutation = useUploadAudio(patientId);
   const generateNoteMutation = useGenerateNote();
   const saveNoteMutation = useSaveNote();
 
-  // Local state for browser audio recording
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<any>(null);
 
-  // Local state for SOAP Note Editor form
   const [soapTab, setSoapTab] = useState<'subjective' | 'objective' | 'assessment' | 'plan'>('subjective');
   const [noteId, setNoteId] = useState<string>('');
   const [symptomsText, setSymptomsText] = useState('');
@@ -57,7 +50,6 @@ export default function SessionDetailPage() {
     confidence: '',
   });
 
-  // Sync session details on load
   useEffect(() => {
     if (session) {
       setIsNoteFinalized(session.note_finalized);
@@ -69,7 +61,6 @@ export default function SessionDetailPage() {
     }
   }, [session]);
 
-  // Sync generated note ID from generate note mutation
   useEffect(() => {
     if (generateNoteMutation.data) {
       const generated = generateNoteMutation.data;
@@ -80,7 +71,6 @@ export default function SessionDetailPage() {
     }
   }, [generateNoteMutation.data]);
 
-  // Duration timer ticker helper
   useEffect(() => {
     if (isRecording) {
       timerRef.current = setInterval(() => {
@@ -92,22 +82,17 @@ export default function SessionDetailPage() {
         timerRef.current = null;
       }
     }
-
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isRecording]);
 
-  // format recording seconds to MM:SS
   const formatRecordingTime = (totalSecs: number) => {
     const mins = Math.floor(totalSecs / 60);
     const secs = totalSecs % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Browser Audio Capturing triggers
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -116,16 +101,12 @@ export default function SessionDetailPage() {
       
       const audioChunks: Blob[] = [];
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.push(event.data);
-        }
+        if (event.data.size > 0) audioChunks.push(event.data);
       };
 
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
         setRecordedBlob(audioBlob);
-        
-        // Stop all audio stream tracks
         stream.getTracks().forEach((track) => track.stop());
       };
 
@@ -145,24 +126,14 @@ export default function SessionDetailPage() {
     }
   };
 
-  // Upload captured audio blob and transcribe
   const handleUploadAudio = () => {
     if (!recordedBlob || !sessionId) return;
-    
-    const audioFile = new File([recordedBlob], 'consultation_session.webm', {
-      type: 'audio/webm',
-    });
-
-    uploadAudioMutation.mutate({
-      sessionId,
-      audioFile,
-    });
+    const audioFile = new File([recordedBlob], 'consultation_session.webm', { type: 'audio/webm' });
+    uploadAudioMutation.mutate({ sessionId, audioFile });
   };
 
-  // Trigger AI SOAP note compilation from raw transcript
   const handleGenerateNote = () => {
     if (!session?.transcript || !patient || !sessionId) return;
-    
     generateNoteMutation.mutate({
       transcriptId: sessionId,
       patientName: patient.name,
@@ -170,25 +141,14 @@ export default function SessionDetailPage() {
     });
   };
 
-  // Submit finalised SOAP inputs
   const handleSaveNote = () => {
     if (!patientId || !sessionId) return;
-    
     const targetNoteId = noteId || sessionId;
-
-    // Convert comma textareas back to arrays
     const finalNote: ClinicalNote = {
       ...noteState,
-      symptoms_mentioned: symptomsText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      medications_mentioned: medicationsText
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      symptoms_mentioned: symptomsText.split(',').map((s) => s.trim()).filter(Boolean),
+      medications_mentioned: medicationsText.split(',').map((s) => s.trim()).filter(Boolean),
     };
-
     saveNoteMutation.mutate({
       noteId: targetNoteId,
       doctorEdited: finalNote,
@@ -201,7 +161,6 @@ export default function SessionDetailPage() {
     });
   };
 
-  // Copy raw transcript contents helper
   const handleCopyTranscript = () => {
     if (session?.transcript) {
       navigator.clipboard.writeText(session.transcript);
@@ -213,14 +172,14 @@ export default function SessionDetailPage() {
   if (isSessionError) {
     return (
       <div className="p-6 text-center max-w-lg mx-auto mt-20">
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-rose-400 mb-2">Session Not Found</h3>
-          <p className="text-xs text-muted-foreground mb-4">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-rose-700 mb-2">Session Not Found</h3>
+          <p className="text-xs text-rose-600/70 mb-4">
             The consultation log could not be loaded from database.
           </p>
           <Link
             to={`/patients/${patientId}/sessions`}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-primary hover:underline"
+            className="inline-flex items-center gap-2 text-xs font-semibold text-[#003d9b] hover:underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Return to Patient Sessions
@@ -230,14 +189,13 @@ export default function SessionDetailPage() {
     );
   }
 
-  // Visual text extractor helper for mock activity summaries
   const renderSummaryCard = () => {
     const hasNote = session?.note || generateNoteMutation.data;
     
     if (!hasNote) {
       return (
-        <Card className={cn('border border-white/[0.06] bg-slate-900/40 rounded-2xl select-none', isCompact ? 'p-4' : 'p-5')}>
-          <CardContent className="p-0 text-center py-4 text-xs font-semibold text-muted-foreground italic select-none">
+        <Card className={cn('bg-white border-border shadow-sm rounded-xl select-none', isCompact ? 'p-4' : 'p-5')}>
+          <CardContent className="p-0 text-center py-4 text-xs font-semibold text-[#747783] italic select-none">
             No summary generated yet.
           </CardContent>
         </Card>
@@ -248,9 +206,8 @@ export default function SessionDetailPage() {
     const planText = noteState.plan_discussed || 'No clinical plans specified.';
 
     return (
-      <Card className={cn('border border-white/[0.06] bg-slate-900/40 rounded-2xl select-none relative overflow-hidden', isCompact ? 'p-4' : 'p-5')}>
-        <div className="absolute top-0 right-0 w-24 h-24 bg-[#508a7b]/5 rounded-full blur-2xl pointer-events-none" />
-        <CardHeader className={cn('p-0 mb-3 border-b border-white/[0.04] flex flex-row items-center gap-2 select-none', isCompact ? 'pb-2' : 'pb-3')}>
+      <Card className={cn('bg-white border-border shadow-sm rounded-xl select-none', isCompact ? 'p-4' : 'p-5')}>
+        <CardHeader className={cn('p-0 mb-3 border-b border-border flex flex-row items-center gap-2 select-none', isCompact ? 'pb-2' : 'pb-3')}>
           <div className="h-6 w-6 rounded-lg bg-[#508a7b]/10 border border-[#508a7b]/20 flex items-center justify-center text-[#508a7b] shrink-0">
             <FileText className="h-3.5 w-3.5" />
           </div>
@@ -258,12 +215,12 @@ export default function SessionDetailPage() {
             Clinical Session Summary
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0 flex flex-col gap-3 text-xs leading-relaxed text-foreground/90 font-medium">
+        <CardContent className="p-0 flex flex-col gap-3 text-xs leading-relaxed text-[#191c1d] font-medium">
           <p>
-            <strong>Presenting Complaint:</strong> {summaryText}
+            <strong className="text-[#003d9b]">Presenting Complaint:</strong> {summaryText}
           </p>
           <p>
-            <strong>Plan Discussed:</strong> {planText}
+            <strong className="text-[#003d9b]">Plan Discussed:</strong> {planText}
           </p>
         </CardContent>
       </Card>
@@ -281,7 +238,7 @@ export default function SessionDetailPage() {
       <div className="flex flex-col gap-4">
         <Link
           to={`/patients/${patientId}/sessions`}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors w-fit group"
+          className="flex items-center gap-2 text-xs text-[#747783] hover:text-[#191c1d] font-semibold transition-colors w-fit group"
         >
           <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-1" />
           Back to Sessions Log
@@ -290,22 +247,22 @@ export default function SessionDetailPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 select-none">
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center flex-wrap gap-3">
-              <h1 className={cn('font-bold tracking-tight text-foreground', isCompact ? 'text-lg' : 'text-xl')}>
+              <h1 className={cn('font-bold tracking-tight text-[#191c1d]', isCompact ? 'text-lg' : 'text-xl')}>
                 Consultation Session Workspace
               </h1>
               
               {isNoteFinalized ? (
-                <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border-emerald-500/20 bg-emerald-500/10 text-emerald-400 select-none flex items-center gap-1">
+                <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border-emerald-200 bg-emerald-50 text-emerald-700 select-none flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3" />
                   Finalized
                 </Badge>
               ) : session?.note ? (
-                <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border-amber-500/20 bg-amber-500/10 text-amber-400 select-none flex items-center gap-1 animate-pulse">
+                <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border-amber-200 bg-amber-50 text-amber-700 select-none flex items-center gap-1 animate-pulse">
                   <AlertTriangle className="h-3 w-3" />
                   Draft Review
                 </Badge>
               ) : (
-                <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border-white/10 bg-white/[0.04] text-muted-foreground select-none">
+                <Badge variant="outline" className="px-2.5 py-0.5 rounded-full text-[10px] font-bold border-border bg-[#f8f9fa] text-[#747783] select-none">
                   Pending Audio Recording
                 </Badge>
               )}
@@ -314,8 +271,8 @@ export default function SessionDetailPage() {
             {isLoading ? (
               <Skeleton className="h-4 w-44" />
             ) : (
-              <span className="text-xs font-semibold text-muted-foreground">
-                Patient: <strong className="text-foreground">{patient?.name}</strong> · Session ID: #{sessionId?.slice(0, 8).toUpperCase()}
+              <span className="text-xs font-semibold text-[#747783]">
+                Patient: <strong className="text-[#191c1d]">{patient?.name}</strong> · Session ID: #{sessionId?.slice(0, 8).toUpperCase()}
               </span>
             )}
           </div>
@@ -329,28 +286,26 @@ export default function SessionDetailPage() {
         <div className={cn('flex flex-col select-none', isCompact ? 'gap-4' : 'gap-6')}>
           
           {/* Audio Wave Recorder Panel */}
-          <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden relative">
-            <CardHeader className={cn('border-b border-white/[0.06]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
-              <CardTitle className="text-sm font-bold tracking-wide text-foreground">
+          <Card className="bg-white border-border shadow-sm rounded-xl overflow-hidden">
+            <CardHeader className={cn('border-b border-border bg-[#f8f9fa]', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
+              <CardTitle className="text-sm font-bold tracking-wide text-[#191c1d]">
                 Audio Recorder Workspace
               </CardTitle>
             </CardHeader>
             <CardContent className={cn('flex flex-col items-center justify-center select-none', isCompact ? 'p-4 gap-3.5' : 'p-6 gap-5')}>
               
-              {/* Visualized Wave / Status Block */}
               <div
                 className={cn(
-                  'w-full rounded-2xl bg-white/[0.01] border border-white/[0.04] flex flex-col items-center justify-center gap-2 relative overflow-hidden select-none transition-all duration-200',
+                  'w-full rounded-xl bg-[#f8f9fa] border border-border flex flex-col items-center justify-center gap-2 relative overflow-hidden select-none transition-all duration-200',
                   isCompact ? 'h-16' : 'h-24'
                 )}
               >
-                {/* Visual Sage pulsing waveform loops */}
                 {isRecording && (
                   <div className="absolute inset-0 flex items-center justify-center gap-1 opacity-25 select-none">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
                       <span
                         key={i}
-                        className="w-1 rounded-full bg-[#508a7b] animate-bounce shrink-0"
+                        className="w-1 rounded-full bg-[#003d9b] animate-bounce shrink-0"
                         style={{
                           height: `${Math.floor(Math.random() * 40) + 10}px`,
                           animationDuration: `${Math.floor(Math.random() * 600) + 400}ms`,
@@ -360,16 +315,15 @@ export default function SessionDetailPage() {
                   </div>
                 )}
 
-                <span className={cn('text-2xl font-mono select-none tracking-wider', isRecording ? 'text-rose-400 font-bold' : 'text-foreground')}>
+                <span className={cn('text-2xl font-mono select-none tracking-wider', isRecording ? 'text-rose-500 font-bold' : 'text-[#191c1d]')}>
                   {formatRecordingTime(recordingSeconds)}
                 </span>
                 
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                <span className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                   {isRecording ? 'Capturing consultation audio stream...' : 'Microphone idle'}
                 </span>
               </div>
 
-              {/* Action Buttons Toolbar */}
               <div className="flex items-center gap-3 select-none">
                 {!isRecording ? (
                   <button
@@ -377,7 +331,7 @@ export default function SessionDetailPage() {
                     onClick={startRecording}
                     disabled={isNoteFinalized}
                     className={cn(
-                      'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50',
+                      'inline-flex items-center gap-2 rounded-lg text-xs font-bold bg-[#003d9b] hover:bg-[#00296d] text-white shadow-md transition-all active:scale-[0.98] disabled:opacity-50',
                       isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
                     )}
                   >
@@ -389,7 +343,7 @@ export default function SessionDetailPage() {
                     type="button"
                     onClick={stopRecording}
                     className={cn(
-                      'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 shadow-md transition-all active:scale-[0.98]',
+                      'inline-flex items-center gap-2 rounded-lg text-xs font-bold bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 shadow-sm transition-all active:scale-[0.98]',
                       isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
                     )}
                   >
@@ -404,11 +358,11 @@ export default function SessionDetailPage() {
                     onClick={handleUploadAudio}
                     disabled={uploadAudioMutation.isPending || isNoteFinalized}
                     className={cn(
-                      'inline-flex items-center gap-2 rounded-xl text-xs font-bold bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] active:scale-[0.98] text-foreground transition-all disabled:opacity-50',
+                      'inline-flex items-center gap-2 rounded-lg text-xs font-bold bg-white border border-border hover:bg-[#f8f9fa] active:scale-[0.98] text-[#191c1d] transition-all disabled:opacity-50',
                       isCompact ? 'px-3 py-1.5' : 'px-4 py-2'
                     )}
                   >
-                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                    <Volume2 className="h-4 w-4 text-[#747783]" />
                     {uploadAudioMutation.isPending ? 'Transcribing...' : 'Upload & Transcribe'}
                   </button>
                 )}
@@ -418,9 +372,9 @@ export default function SessionDetailPage() {
           </Card>
 
           {/* Transcript Viewer Panel */}
-          <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden flex flex-col flex-1">
-            <CardHeader className={cn('border-b border-white/[0.06] flex flex-row items-center justify-between select-none', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
-              <CardTitle className="text-sm font-bold tracking-wide text-foreground">
+          <Card className="bg-white border-border shadow-sm rounded-xl overflow-hidden flex flex-col flex-1">
+            <CardHeader className={cn('border-b border-border bg-[#f8f9fa] flex flex-row items-center justify-between select-none', isCompact ? 'py-2.5 px-4' : 'py-4 px-6')}>
+              <CardTitle className="text-sm font-bold tracking-wide text-[#191c1d]">
                 Raw Transcript Text Viewer
               </CardTitle>
 
@@ -428,7 +382,7 @@ export default function SessionDetailPage() {
                 <button
                   type="button"
                   onClick={handleCopyTranscript}
-                  className="p-1.5 rounded-lg hover:bg-white/[0.04] text-muted-foreground hover:text-foreground transition-all shrink-0"
+                  className="p-1.5 rounded-md hover:bg-black/5 text-[#747783] hover:text-[#191c1d] transition-all shrink-0"
                   title="Copy transcript"
                 >
                   <Copy className="h-4 w-4" />
@@ -439,7 +393,7 @@ export default function SessionDetailPage() {
               
               <div
                 className={cn(
-                  'flex-1 overflow-y-auto rounded-2xl border border-white/[0.04] bg-black/10 p-4 relative select-text transition-all duration-200',
+                  'flex-1 overflow-y-auto rounded-xl border border-border bg-[#f8f9fa] p-4 relative select-text transition-all duration-200',
                   isCompact ? 'min-h-[160px] max-h-[280px]' : 'min-h-[220px] max-h-[360px]'
                 )}
               >
@@ -450,11 +404,11 @@ export default function SessionDetailPage() {
                     <Skeleton className="h-4 w-4/5 animate-pulse" />
                   </div>
                 ) : !session?.transcript ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-muted-foreground select-none italic text-center p-4">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-[#747783] select-none italic text-center p-4">
                     No transcript generated. Speak into the microphone and upload or await processed records.
                   </div>
                 ) : (
-                  <p className="text-xs font-medium text-foreground/90 leading-relaxed whitespace-pre-wrap select-text">
+                  <p className="text-xs font-medium text-[#191c1d] leading-relaxed whitespace-pre-wrap select-text">
                     {session.transcript}
                   </p>
                 )}
@@ -466,7 +420,7 @@ export default function SessionDetailPage() {
                   onClick={handleGenerateNote}
                   disabled={generateNoteMutation.isPending}
                   className={cn(
-                    'w-full inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50 select-none',
+                    'w-full inline-flex items-center justify-center gap-2 rounded-lg text-xs font-bold bg-[#508a7b] hover:bg-[#437568] text-white shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 select-none',
                     isCompact ? 'px-3 py-1.5' : 'px-4 py-2.5'
                   )}
                 >
@@ -483,36 +437,30 @@ export default function SessionDetailPage() {
         {/* ── Right Column (SOAP Editor + Summary) ────────────────── */}
         <div className={cn('flex flex-col select-none', isCompact ? 'gap-4' : 'gap-6')}>
           
-          {/* AI Session Summary Card */}
           {renderSummaryCard()}
 
           {/* SOAP Note Tabbed Form Editor */}
-          <Card className="border border-white/[0.06] bg-slate-900/40 shadow-lg rounded-2xl overflow-hidden flex-1 flex flex-col">
-            <CardHeader className={cn('border-b border-white/[0.06] flex flex-col select-none', isCompact ? 'gap-2 py-2.5 px-4' : 'gap-3 py-4 px-6')}>
+          <Card className="bg-white border-border shadow-sm rounded-xl overflow-hidden flex-1 flex flex-col">
+            <CardHeader className={cn('border-b border-border bg-[#f8f9fa] flex flex-col select-none', isCompact ? 'gap-2 py-2.5 px-4' : 'gap-3 py-4 px-6')}>
               <div className="flex items-center justify-between gap-4">
-                <CardTitle className="text-sm font-bold tracking-wide text-foreground">
+                <CardTitle className="text-sm font-bold tracking-wide text-[#191c1d]">
                   SOAP Clinical Notes Editor
                 </CardTitle>
                 
                 {isNoteFinalized && (
-                  <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] rounded-full flex items-center gap-1 select-none">
+                  <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] rounded-full flex items-center gap-1 select-none">
                     <Lock className="h-3 w-3 shrink-0" />
                     Locked
                   </Badge>
                 )}
               </div>
 
-              {/* Horizontal Tabs selector */}
-              <Tabs
-                value={soapTab}
-                onValueChange={(v) => setSoapTab(v as any)}
-                className="w-full"
-              >
-                <TabsList className="bg-white/[0.02] border border-white/[0.06] w-full p-1 rounded-xl grid grid-cols-4 select-none">
-                  <TabsTrigger value="subjective" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-lg active:scale-95 transition-all">S</TabsTrigger>
-                  <TabsTrigger value="objective" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-lg active:scale-95 transition-all">O</TabsTrigger>
-                  <TabsTrigger value="assessment" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-lg active:scale-95 transition-all">A</TabsTrigger>
-                  <TabsTrigger value="plan" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-lg active:scale-95 transition-all">P</TabsTrigger>
+              <Tabs value={soapTab} onValueChange={(v) => setSoapTab(v as any)} className="w-full">
+                <TabsList className="bg-[#f3f4f5] border border-border w-full p-1 rounded-lg grid grid-cols-4 select-none">
+                  <TabsTrigger value="subjective" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md data-[state=active]:bg-white data-[state=active]:text-[#003d9b] data-[state=active]:shadow-sm transition-all">S</TabsTrigger>
+                  <TabsTrigger value="objective" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md data-[state=active]:bg-white data-[state=active]:text-[#003d9b] data-[state=active]:shadow-sm transition-all">O</TabsTrigger>
+                  <TabsTrigger value="assessment" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md data-[state=active]:bg-white data-[state=active]:text-[#003d9b] data-[state=active]:shadow-sm transition-all">A</TabsTrigger>
+                  <TabsTrigger value="plan" className="text-[10px] font-bold uppercase tracking-wider py-1.5 rounded-md data-[state=active]:bg-white data-[state=active]:text-[#003d9b] data-[state=active]:shadow-sm transition-all">P</TabsTrigger>
                 </TabsList>
               </Tabs>
             </CardHeader>
@@ -523,7 +471,7 @@ export default function SessionDetailPage() {
                 {soapTab === 'subjective' && (
                   <div className={cn('flex flex-col animate-in fade-in duration-200', isCompact ? 'gap-3' : 'gap-4')}>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                         Presenting Complaint
                       </label>
                       <textarea
@@ -532,14 +480,14 @@ export default function SessionDetailPage() {
                         onChange={(e) => setNoteState({ ...noteState, presenting_complaint: e.target.value })}
                         placeholder="Enter the patient's subjective symptoms and history..."
                         className={cn(
-                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
                         )}
                       />
                     </div>
                     
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                         Symptoms Mentioned (Comma separated)
                       </label>
                       <textarea
@@ -548,7 +496,7 @@ export default function SessionDetailPage() {
                         onChange={(e) => setSymptomsText(e.target.value)}
                         placeholder="e.g. fatigue, insomnia, anxiety..."
                         className={cn(
-                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-10 p-2.5' : 'h-12 p-3.5'
                         )}
                       />
@@ -556,28 +504,28 @@ export default function SessionDetailPage() {
 
                     <div className={cn('grid grid-cols-2', isCompact ? 'gap-3' : 'gap-4')}>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mood words</label>
+                        <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">Mood words</label>
                         <input
                           value={noteState.mood_in_patient_words}
                           disabled={isNoteFinalized || isLoading}
                           onChange={(e) => setNoteState({ ...noteState, mood_in_patient_words: e.target.value })}
                           type="text"
                           className={cn(
-                            'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text transition-all duration-200',
+                            'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text transition-all duration-200',
                             isCompact ? 'p-2' : 'p-3'
                           )}
                           placeholder="Patient's words..."
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sleep Quality</label>
+                        <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">Sleep Quality</label>
                         <input
                           value={noteState.sleep}
                           disabled={isNoteFinalized || isLoading}
                           onChange={(e) => setNoteState({ ...noteState, sleep: e.target.value })}
                           type="text"
                           className={cn(
-                            'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text transition-all duration-200',
+                            'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text transition-all duration-200',
                             isCompact ? 'p-2' : 'p-3'
                           )}
                           placeholder="Sleep duration/quality..."
@@ -586,14 +534,14 @@ export default function SessionDetailPage() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Social Context</label>
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">Social Context</label>
                       <input
                         value={noteState.social_context}
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, social_context: e.target.value })}
                         type="text"
                         className={cn(
-                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text transition-all duration-200',
+                          'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text transition-all duration-200',
                           isCompact ? 'p-2' : 'p-3'
                         )}
                         placeholder="Work pressure, support..."
@@ -605,7 +553,7 @@ export default function SessionDetailPage() {
                 {soapTab === 'objective' && (
                   <div className="flex flex-col animate-in fade-in duration-200">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                         Medications Mentioned (Comma separated)
                       </label>
                       <textarea
@@ -614,7 +562,7 @@ export default function SessionDetailPage() {
                         onChange={(e) => setMedicationsText(e.target.value)}
                         placeholder="e.g. Sertraline 50mg, Ibuprofen..."
                         className={cn(
-                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
                         )}
                       />
@@ -625,7 +573,7 @@ export default function SessionDetailPage() {
                 {soapTab === 'assessment' && (
                   <div className={cn('flex flex-col animate-in fade-in duration-200', isCompact ? 'gap-3' : 'gap-4')}>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                         Clinical Assessment Flags
                       </label>
                       <textarea
@@ -634,14 +582,14 @@ export default function SessionDetailPage() {
                         onChange={(e) => setNoteState({ ...noteState, flags_for_review: e.target.value })}
                         placeholder="Review flags and diagnostic summaries..."
                         className={cn(
-                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
                         )}
                       />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                         AI Confidence Metric (Read-Only)
                       </label>
                       <input
@@ -649,7 +597,7 @@ export default function SessionDetailPage() {
                         disabled
                         type="text"
                         className={cn(
-                          'w-full text-xs font-bold rounded-xl border border-white/[0.06] bg-black/10 text-[#508a7b] capitalize select-none cursor-not-allowed opacity-80 transition-all duration-200',
+                          'w-full text-xs font-bold rounded-lg border border-border bg-[#f8f9fa] text-[#003d9b] capitalize select-none cursor-not-allowed opacity-80 transition-all duration-200',
                           isCompact ? 'p-2' : 'p-3'
                         )}
                       />
@@ -660,7 +608,7 @@ export default function SessionDetailPage() {
                 {soapTab === 'plan' && (
                   <div className="flex flex-col animate-in fade-in duration-200">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                      <label className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
                         Clinical Treatment Plan
                       </label>
                       <textarea
@@ -669,7 +617,7 @@ export default function SessionDetailPage() {
                         onChange={(e) => setNoteState({ ...noteState, plan_discussed: e.target.value })}
                         placeholder="Discussed therapy routines, medications adjustments, and follow-ups..."
                         className={cn(
-                          'w-full text-xs font-semibold rounded-xl border border-white/[0.06] bg-black/10 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#508a7b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
+                          'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-24 p-2.5' : 'h-32 p-3.5'
                         )}
                       />
@@ -679,14 +627,13 @@ export default function SessionDetailPage() {
 
               </div>
 
-              {/* SOAP Finalize Trigger */}
               {!isNoteFinalized && (noteState.presenting_complaint || noteState.plan_discussed) && (
                 <button
                   type="button"
                   onClick={handleSaveNote}
                   disabled={saveNoteMutation.isPending}
                   className={cn(
-                    'w-full inline-flex items-center justify-center gap-2 rounded-xl text-xs font-bold bg-[#508a7b] hover:bg-[#437568] active:bg-[#396358] text-white shadow-md active:scale-[0.98] transition-all disabled:opacity-50 select-none',
+                    'w-full inline-flex items-center justify-center gap-2 rounded-lg text-xs font-bold bg-[#003d9b] hover:bg-[#00296d] text-white shadow-sm active:scale-[0.98] transition-all disabled:opacity-50 select-none',
                     isCompact ? 'px-3 py-1.5 mt-3' : 'px-4 py-2.5 mt-4'
                   )}
                 >

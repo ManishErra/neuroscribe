@@ -163,10 +163,11 @@ export default function PatientProfilePage() {
       {/* ── Sub Navigation Tabs Deck ────────────────────────────── */}
       <div className={cn('border-b border-white/[0.06] flex items-center overflow-x-auto select-none no-scrollbar', isCompact ? 'gap-4' : 'gap-6')}>
         {[
+          { path: 'timeline', label: 'Timeline' },
           { path: 'overview', label: 'Overview' },
-          { path: 'reports', label: 'Reports' },
-          { path: 'timeline', label: 'Clinical Trends' },
           { path: 'sessions', label: 'Sessions' },
+          { path: 'reports', label: 'Reports' },
+          { path: 'ask', label: 'Ask NeuroScribe' },
         ].map((tab) => (
           <NavLink
             key={tab.path}
@@ -176,7 +177,7 @@ export default function PatientProfilePage() {
                 'text-xs font-bold transition-all relative select-none whitespace-nowrap',
                 isCompact ? 'pb-2' : 'pb-3',
                 isActive
-                  ? 'text-primary font-bold'
+                  ? 'text-[#003d9b] font-bold'
                   : 'text-muted-foreground hover:text-foreground'
               )
             }
@@ -185,7 +186,7 @@ export default function PatientProfilePage() {
               <>
                 {tab.label}
                 {isActive && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#508a7b] rounded-full shadow-[0_0_8px_rgba(80,138,123,0.5)] animate-in slide-in-from-left duration-200" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#003d9b] rounded-full shadow-[0_0_8px_rgba(0,61,155,0.5)] animate-in slide-in-from-left duration-200" />
                 )}
               </>
             )}

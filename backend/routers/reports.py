@@ -602,6 +602,7 @@ async def run_report_ocr(
     try:
         add_report_embeddings(
             report_id=str(report.id),
+            patient_id=str(report.patient_id),
             report_text=extracted,
             owner_id=str(current_user.id),
         )
