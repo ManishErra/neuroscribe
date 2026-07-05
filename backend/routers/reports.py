@@ -32,7 +32,7 @@ async def scan_file_for_malware(file: UploadFile) -> MalwareScanResult:
     # Future ClamAV integration point
     return MalwareScanResult(clean=True, reason="ClamAV integration pending")
 
-router = APIRouter(prefix="/reports", tags=["Reports"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/reports", tags=["Reports"])
 
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 

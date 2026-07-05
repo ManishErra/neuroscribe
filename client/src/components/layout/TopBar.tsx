@@ -35,6 +35,8 @@ function buildBreadcrumb(pathname: string): string {
         return 'Insights';
       case 'timeline':
         return 'Timeline';
+      case 'trends':
+        return 'Trends';
       default:
         return part.charAt(0).toUpperCase() + part.slice(1);
     }
@@ -58,6 +60,10 @@ export default function TopBar() {
     day: 'numeric',
     year: 'numeric',
   });
+
+  // Calculate shift (Morning vs Afternoon shift based on 12-hour mark)
+  const hour = today.getHours();
+  const shiftLabel = hour < 12 ? 'Morning Shift' : 'Afternoon Shift';
 
   // Capture "/" hotkey press to trigger immediate route navigation
   useEffect(() => {
@@ -83,23 +89,23 @@ export default function TopBar() {
     <header
       id="topbar"
       className={cn(
-        'sticky top-0 z-40 flex items-center justify-between bg-background/80 backdrop-blur-sm border-b border-border select-none transition-all duration-200',
+        'sticky top-0 z-40 flex items-center justify-between bg-white border-b border-[#E2E8E4] select-none transition-all duration-200 shadow-sm',
         isCompact ? 'h-11 px-4' : 'h-14 px-6'
       )}
     >
       {/* ── Dynamic Breadcrumb Routing ────────────────────────── */}
       <nav aria-label="Breadcrumb">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+        <p className="text-xs font-bold text-[#424843] uppercase tracking-wider flex items-center gap-1">
           {breadcrumb}
         </p>
       </nav>
 
       {/* ── Search shortcut and Date Picker ────────────────────── */}
       <div className={cn('flex items-center', isCompact ? 'gap-3' : 'gap-4')}>
-        {/* Date tracker banner */}
-        <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground border-r border-border pr-4 h-5 select-none">
-          <Calendar className="h-3.5 w-3.5" />
-          <span>{formattedDate}</span>
+        {/* Date and Shift tracker banner */}
+        <div className="hidden md:flex items-center gap-2 text-xs font-bold text-[#424843]/85 border-r border-[#E2E8E4] pr-4 h-5 select-none">
+          <Calendar className="h-3.5 w-3.5 text-[#466551]" />
+          <span>{shiftLabel} • {formattedDate}</span>
         </div>
 
         {/* Global search launcher */}
@@ -107,14 +113,14 @@ export default function TopBar() {
           id="topbar-search"
           onClick={() => navigate('/search')}
           className={cn(
-            'flex items-center gap-2 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground hover:bg-accent/40 hover:text-foreground transition-all duration-200',
+            'flex items-center gap-2 rounded-lg border border-[#c3c6d6] bg-[#faf9f6] text-xs text-[#424843]/70 hover:bg-[#faf9f6]/80 hover:text-[#1a1c1a] transition-all duration-200',
             isCompact ? 'px-2 py-1' : 'px-3 py-1.5'
           )}
           aria-label="Open semantic search"
         >
           <Search className="h-3.5 w-3.5" />
           <span>Search patients…</span>
-          <kbd className="ml-1 text-[9px] font-mono bg-background border border-border px-1 rounded opacity-60">/</kbd>
+          <kbd className="ml-1 text-[9px] font-mono bg-white border border-[#c3c6d6] px-1 rounded opacity-60">/</kbd>
         </button>
       </div>
     </header>

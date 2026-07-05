@@ -11,9 +11,11 @@ export default {
         sans: ["Inter", "sans-serif"],
       },
       borderRadius: {
-        lg: "var(--radius)",
+        lg: "var(--radius)", // 8px (standard for buttons/inputs)
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "1rem",          // 16px (large for cards/modals)
+        "2xl": "1rem",       // 16px (large for cards/modals)
       },
       colors: {
         // shadcn CSS variable palette

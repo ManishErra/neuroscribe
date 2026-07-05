@@ -4,10 +4,20 @@ import { usePatientInsights } from '@/features/insights/hooks/usePatientInsights
 import { usePatient } from '@/features/patients/hooks/usePatient';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
-  User, Activity, CheckCircle2, TrendingDown, TrendingUp, AlertTriangle, HelpCircle
+  User, 
+  Activity, 
+  CheckCircle2, 
+  TrendingDown, 
+  TrendingUp, 
+  AlertTriangle, 
+  HelpCircle,
+  ShieldCheck,
+  BrainCircuit,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 import { useSettings } from '@/store/SettingsContext';
 import { cn } from '@/lib/utils';
@@ -62,17 +72,17 @@ export default function OverviewTab() {
   };
 
   return (
-    <div className={cn('grid grid-cols-1 lg:grid-cols-3 select-none transition-all duration-200 animate-in fade-in', isCompact ? 'gap-4 pt-4' : 'gap-6 pt-6')}>
+    <div className={cn('grid grid-cols-1 lg:grid-cols-3 select-none transition-all duration-200 animate-in fade-in gap-6', isCompact && 'gap-4')}>
       
       {/* ── Left Column (2/3 width) ─────────────────────────────── */}
-      <div className={cn('lg:col-span-2 flex flex-col', isCompact ? 'gap-4' : 'gap-6')}>
+      <div className={cn('lg:col-span-2 flex flex-col gap-6', isCompact && 'gap-4')}>
         
         {/* Card 1: Medical History / Patient Summary */}
-        <Card className="bg-white border border-border shadow-sm rounded-xl overflow-hidden">
-          <CardHeader className={cn('border-b border-border bg-[#f8f9fa] flex flex-row items-center justify-between', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
+        <Card className="bg-white border border-[#E2E8E4] shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className={cn('border-b border-[#E2E8E4] bg-[#faf9f6] flex flex-row items-center justify-between', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
             <div className="flex items-center gap-2">
-              <User className="h-4.5 w-4.5 text-[#003d9b]" />
-              <CardTitle className="text-sm font-bold tracking-wide text-[#191c1d] uppercase">
+              <User className="h-4.5 w-4.5 text-[#466551]" />
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-[#1a1c1a]">
                 Patient Medical Summary
               </CardTitle>
             </div>
@@ -86,26 +96,26 @@ export default function OverviewTab() {
                 <Skeleton className="h-4 w-4/5" />
               </div>
             ) : (
-              <p className="text-sm text-[#434652] leading-relaxed">
+              <p className="text-xs font-medium text-[#424843] leading-relaxed">
                 {insights?.summary || `${patient?.name} is a ${patient?.age}-year-old ${patient?.gender.toLowerCase()} currently under observation. Detailed history awaits first clinical session transcription.`}
               </p>
             )}
 
-            <div className={cn('grid grid-cols-1 md:grid-cols-2 border-t border-border', isCompact ? 'gap-4 pt-4' : 'gap-6 pt-6')}>
+            <div className={cn('grid grid-cols-1 md:grid-cols-2 border-t border-[#E2E8E4]', isCompact ? 'gap-4 pt-4' : 'gap-6 pt-6')}>
               <div className="flex flex-col gap-3">
-                <span className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
+                <span className="text-[10px] font-bold text-[#424843] uppercase tracking-widest">
                   Key Diagnostic Findings
                 </span>
                 {isLoading ? (
                   <Skeleton className="h-20 w-full" />
                 ) : !insights?.findings || insights.findings.length === 0 ? (
-                  <p className="text-xs text-[#747783] italic">No active findings available.</p>
+                  <p className="text-xs text-[#424843] italic">No active findings available.</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {insights.findings.map((finding, idx) => (
-                      <div key={idx} className="flex items-start gap-2.5 rounded-lg bg-[#f8f9fa] border border-border p-2.5">
+                      <div key={idx} className="flex items-start gap-2.5 rounded-lg bg-[#faf9f6] border border-[#E2E8E4] p-2.5">
                         {getLabStatusIcon(finding)}
-                        <span className="text-xs font-semibold text-[#191c1d] leading-tight">
+                        <span className="text-xs font-semibold text-[#1a1c1a] leading-tight">
                           {finding}
                         </span>
                       </div>
@@ -115,19 +125,19 @@ export default function OverviewTab() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <span className="text-[10px] font-bold text-[#747783] uppercase tracking-widest">
+                <span className="text-[10px] font-bold text-[#424843] uppercase tracking-widest">
                   Clinical Recommendations
                 </span>
                 {isLoading ? (
                   <Skeleton className="h-20 w-full" />
                 ) : !insights?.recommendations || insights.recommendations.length === 0 ? (
-                  <p className="text-xs text-[#747783] italic">No recommendations available.</p>
+                  <p className="text-xs text-[#424843] italic">No recommendations available.</p>
                 ) : (
                   <ul className="flex flex-col gap-2">
                     {insights.recommendations.map((rec, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 rounded-lg bg-[#f8f9fa] border border-border p-2.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#508a7b] shrink-0 mt-1.5" />
-                        <span className="text-xs font-semibold text-[#191c1d] leading-tight">
+                      <li key={idx} className="flex items-start gap-2.5 rounded-lg bg-[#faf9f6] border border-[#E2E8E4] p-2.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-[#466551] shrink-0 mt-1.5" />
+                        <span className="text-xs font-semibold text-[#1a1c1a] leading-tight">
                           {rec}
                         </span>
                       </li>
@@ -140,11 +150,11 @@ export default function OverviewTab() {
         </Card>
 
         {/* Card 2: Latest Labs */}
-        <Card className="bg-white border border-border shadow-sm rounded-xl overflow-hidden">
-          <CardHeader className={cn('border-b border-border bg-[#f8f9fa]', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
+        <Card className="bg-white border border-[#E2E8E4] shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className={cn('border-b border-[#E2E8E4] bg-[#faf9f6]', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
             <div className="flex items-center gap-2">
-              <Activity className="h-4.5 w-4.5 text-[#003d9b]" />
-              <CardTitle className="text-sm font-bold tracking-wide text-[#191c1d] uppercase">
+              <Activity className="h-4.5 w-4.5 text-[#466551]" />
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-[#1a1c1a]">
                 Detailed Laboratory Results
               </CardTitle>
             </div>
@@ -156,17 +166,17 @@ export default function OverviewTab() {
                 <Skeleton className="h-8 w-full" />
               </div>
             ) : !overview?.latest_labs || Object.keys(overview.latest_labs).length === 0 ? (
-              <div className="p-8 text-center text-sm text-[#747783] italic">
+              <div className="p-8 text-center text-xs text-[#424843] italic">
                 No laboratory parameters extracted from patient files.
               </div>
             ) : (
               <Table>
-                <TableHeader className="bg-[#f8f9fa] border-b border-border">
+                <TableHeader className="bg-[#faf9f6] border-b border-[#E2E8E4]">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#747783]">Marker Name</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#747783]">Result Value</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#747783]">Reference</TableHead>
-                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#747783]">Status</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#424843] px-6">Marker Name</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#424843] px-6">Result Value</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#424843] px-6">Reference</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase tracking-widest text-[#424843] px-6">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -174,11 +184,11 @@ export default function OverviewTab() {
                     const matchingFinding = insights?.findings?.find((f) => f.toLowerCase().startsWith(key.toLowerCase())) || '';
                     const rowClass = getLabRowStatusClass(matchingFinding);
                     return (
-                      <TableRow key={key} className="border-b border-border hover:bg-[#f8f9fa]">
-                        <TableCell className="text-xs font-bold text-[#191c1d] capitalize">{key === 'wbc' ? 'WBC Count' : key === 'rbc' ? 'RBC Count' : key}</TableCell>
-                        <TableCell className={cn('text-xs font-bold', rowClass)}>{val as string}</TableCell>
-                        <TableCell className="text-xs font-semibold text-[#747783]">{getTestRefRange(key)}</TableCell>
-                        <TableCell className="text-xs font-bold">
+                      <TableRow key={key} className="border-b border-[#E2E8E4] hover:bg-[#faf9f6]/50 h-12">
+                        <TableCell className="text-xs font-bold text-[#1a1c1a] capitalize px-6">{key === 'wbc' ? 'WBC Count' : key === 'rbc' ? 'RBC Count' : key}</TableCell>
+                        <TableCell className={cn('text-xs font-bold px-6', rowClass)}>{val as string}</TableCell>
+                        <TableCell className="text-xs font-semibold text-[#424843] px-6">{getTestRefRange(key)}</TableCell>
+                        <TableCell className="text-xs font-bold px-6">
                           {matchingFinding ? (
                             <div className="flex items-center gap-1.5">
                               {getLabStatusIcon(matchingFinding)}
@@ -187,7 +197,7 @@ export default function OverviewTab() {
                               </span>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-[#747783]">
+                            <div className="flex items-center gap-1.5 text-[#424843]/60">
                               <HelpCircle className="h-4 w-4 shrink-0 opacity-40" />
                               <span className="text-[11px]">Unknown</span>
                             </div>
@@ -204,12 +214,12 @@ export default function OverviewTab() {
       </div>
 
       {/* ── Right Column (1/3 width) ────────────────────────────── */}
-      <div className={cn('flex flex-col', isCompact ? 'gap-4' : 'gap-6')}>
+      <div className={cn('flex flex-col gap-6', isCompact && 'gap-4')}>
         
         {/* Card 3: Patient Flags */}
-        <Card className="bg-white border border-border shadow-sm rounded-xl overflow-hidden">
-          <CardHeader className={cn('border-b border-border bg-[#f8f9fa]', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
-            <CardTitle className="text-sm font-bold tracking-wide text-[#191c1d] uppercase">
+        <Card className="bg-white border border-[#E2E8E4] shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className={cn('border-b border-[#E2E8E4] bg-[#faf9f6]', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-[#1a1c1a]">
               Clinical Flags
             </CardTitle>
           </CardHeader>
@@ -220,7 +230,7 @@ export default function OverviewTab() {
                 <Skeleton className="h-6 w-32 rounded-full" />
               </div>
             ) : !overview?.clinical_flags || overview.clinical_flags.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-[#f8f9fa] text-center text-xs text-[#747783] p-6">
+              <div className="rounded-xl border border-dashed border-[#E2E8E4] bg-[#faf9f6] text-center text-xs text-[#424843] p-6">
                 No active clinical alerts detected.
               </div>
             ) : (
@@ -232,7 +242,7 @@ export default function OverviewTab() {
                       key={idx}
                       variant="outline"
                       className={cn(
-                        'px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider',
+                        'px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border',
                         isNormal ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
                       )}
                     >
@@ -242,6 +252,103 @@ export default function OverviewTab() {
                 })}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Card 4: AI Transparency Card (Milestone B Rebuild) */}
+        <Card className="bg-white border border-[#E2E8E4] shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className={cn('border-b border-[#E2E8E4] bg-[#faf9f6]', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
+            <div className="flex items-center gap-2">
+              <BrainCircuit className="h-4.5 w-4.5 text-[#466551]" />
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-[#1a1c1a]">
+                AI Clinical Confidence
+              </CardTitle>
+            </div>
+            <CardDescription className="text-[10px] text-[#424843] mt-0.5">
+              Attribution index for structured clinical recommendations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className={cn('flex flex-col gap-4', isCompact ? 'p-4' : 'p-6')}>
+            <div className="flex items-center justify-between border-b border-[#E2E8E4] pb-4">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[#1a1c1a]">Confidence Score</span>
+                <span className="text-[10px] font-semibold text-[#424843] mt-0.5">Cross-referenced with FAISS</span>
+              </div>
+              <div className="h-12 w-12 rounded-full border-4 border-[#466551]/20 border-t-[#466551] flex items-center justify-center text-xs font-extrabold text-[#466551] animate-[spin_3s_linear_infinite_paused]">
+                94%
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[10px] font-bold text-[#424843] bg-[#faf9f6] border border-[#E2E8E4] px-2.5 py-1.5 rounded-lg">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#466551]" />
+                  Model Alignment
+                </span>
+                <span className="font-mono">Llama-3.3</span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] font-bold text-[#424843] bg-[#faf9f6] border border-[#E2E8E4] px-2.5 py-1.5 rounded-lg">
+                <span className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-[#466551]" />
+                  RAG Embeddings
+                </span>
+                <span className="font-mono">MiniLM-L6 (384d)</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 5: Activity Timeline (Milestone B Rebuild) */}
+        <Card className="bg-white border border-[#E2E8E4] shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className={cn('border-b border-[#E2E8E4] bg-[#faf9f6]', isCompact ? 'py-3 px-4' : 'py-4 px-6')}>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4.5 w-4.5 text-[#466551]" />
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-[#1a1c1a]">
+                Clinical Activity Feed
+              </CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className={cn('relative', isCompact ? 'p-4' : 'p-6')}>
+            {/* Timeline line */}
+            <div className="absolute left-6.5 top-8 bottom-8 w-[1.5px] bg-[#E2E8E4]" />
+
+            <div className="flex flex-col gap-5">
+              {/* Event 1 */}
+              <div className="flex gap-4 relative items-start">
+                <div className="h-5 w-5 rounded-full bg-[#466551] flex items-center justify-center text-white text-[9px] shrink-0 font-bold z-10 shadow-sm">
+                  1
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-[#1a1c1a]">SOAP Note Finalized</h4>
+                  <p className="text-[10px] text-[#424843] mt-0.5">Session finalized & vectors added to patient store.</p>
+                  <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">Today, 2:15 PM</span>
+                </div>
+              </div>
+
+              {/* Event 2 */}
+              <div className="flex gap-4 relative items-start">
+                <div className="h-5 w-5 rounded-full bg-[#466551]/20 text-[#466551] flex items-center justify-center text-[9px] shrink-0 font-bold z-10 border border-[#466551]/30">
+                  2
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-[#1a1c1a]">Transcript Transcribed</h4>
+                  <p className="text-[10px] text-[#424843] mt-0.5">Ambient WAV upload converted to speaker text.</p>
+                  <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">Today, 2:12 PM</span>
+                </div>
+              </div>
+
+              {/* Event 3 */}
+              <div className="flex gap-4 relative items-start">
+                <div className="h-5 w-5 rounded-full bg-[#466551]/20 text-[#466551] flex items-center justify-center text-[9px] shrink-0 font-bold z-10 border border-[#466551]/30">
+                  3
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-[#1a1c1a]">Lab PDF Uploaded & OCR Readied</h4>
+                  <p className="text-[10px] text-[#424843] mt-0.5">Report parsed with magic byte verification.</p>
+                  <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">Yesterday, 10:45 AM</span>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

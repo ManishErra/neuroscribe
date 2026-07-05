@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useAuth } from '@/auth/useAuth';
 
 export interface SettingsState {
   theme: 'light' | 'dark' | 'system';
@@ -27,18 +28,26 @@ const DEFAULT_SETTINGS: SettingsState = {
 };
 
 export function SettingsContextProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<SettingsState>(() => {
+  const { user } = useAuth();
+  const userId = user?.id || 'guest';
+
+  const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
+
+  // Load user-scoped settings when userId changes
+  useEffect(() => {
     try {
-      // 1. Theme
-      const storedTheme = localStorage.getItem('ns_theme');
+      const themeKey = `ns_${userId}_theme`;
+      const densityKey = `ns_${userId}_density`;
+      const aiConfigKey = `ns_${userId}_ai_config`;
+      const notificationsKey = `ns_${userId}_notifications`;
+
+      const storedTheme = localStorage.getItem(themeKey);
       const theme: SettingsState['theme'] = (storedTheme === 'light' || storedTheme === 'dark') ? storedTheme : 'light';
 
-      // 2. Density
-      const storedDensity = localStorage.getItem('ns_density');
+      const storedDensity = localStorage.getItem(densityKey);
       const density: SettingsState['density'] = (storedDensity === 'compact') ? 'compact' : 'standard';
 
-      // 3. AI Config
-      const storedAiConfig = localStorage.getItem('ns_ai_config');
+      const storedAiConfig = localStorage.getItem(aiConfigKey);
       let aiRagEnabled = DEFAULT_SETTINGS.aiRagEnabled;
       let aiConfidenceLabels = DEFAULT_SETTINGS.aiConfidenceLabels;
       if (storedAiConfig) {
@@ -51,8 +60,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // 4. Notifications
-      const storedNotifications = localStorage.getItem('ns_notifications');
+      const storedNotifications = localStorage.getItem(notificationsKey);
       let notifySessionAlerts = DEFAULT_SETTINGS.notifySessionAlerts;
       let notifyReportReady = DEFAULT_SETTINGS.notifyReportReady;
       if (storedNotifications) {
@@ -65,18 +73,18 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      return {
+      setSettings({
         theme,
         density,
         aiRagEnabled,
         aiConfidenceLabels,
         notifySessionAlerts,
         notifyReportReady,
-      };
+      });
     } catch {
-      return DEFAULT_SETTINGS;
+      setSettings(DEFAULT_SETTINGS);
     }
-  });
+  }, [userId]);
 
   // Apply theme class to document element
   useEffect(() => {
@@ -85,43 +93,23 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
     root.classList.add(settings.theme);
   }, [settings.theme]);
 
-  // Sync back to localStorage on mount to rewrite any invalid stored keys to their valid sanitized states
-  useEffect(() => {
-    try {
-      localStorage.setItem('ns_theme', settings.theme);
-      localStorage.setItem('ns_density', settings.density);
-      localStorage.setItem(
-        'ns_ai_config',
-        JSON.stringify({
-          ragEnabled: settings.aiRagEnabled,
-          confidenceLabels: settings.aiConfidenceLabels,
-        })
-      );
-      localStorage.setItem(
-        'ns_notifications',
-        JSON.stringify({
-          sessionAlerts: settings.notifySessionAlerts,
-          reportReady: settings.notifyReportReady,
-        })
-      );
-    } catch (err) {
-      console.error('Failed to sync valid settings to localStorage on mount', err);
-    }
-  }, [settings]);
-
   const updateSetting = <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => {
-
     setSettings((prev) => {
       const next = { ...prev, [key]: value };
 
       try {
+        const themeKey = `ns_${userId}_theme`;
+        const densityKey = `ns_${userId}_density`;
+        const aiConfigKey = `ns_${userId}_ai_config`;
+        const notificationsKey = `ns_${userId}_notifications`;
+
         if (key === 'theme') {
-          localStorage.setItem('ns_theme', value as string);
+          localStorage.setItem(themeKey, value as string);
         } else if (key === 'density') {
-          localStorage.setItem('ns_density', value as string);
+          localStorage.setItem(densityKey, value as string);
         } else if (key === 'aiRagEnabled' || key === 'aiConfidenceLabels') {
           localStorage.setItem(
-            'ns_ai_config',
+            aiConfigKey,
             JSON.stringify({
               ragEnabled: next.aiRagEnabled,
               confidenceLabels: next.aiConfidenceLabels,
@@ -129,7 +117,7 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
           );
         } else if (key === 'notifySessionAlerts' || key === 'notifyReportReady') {
           localStorage.setItem(
-            'ns_notifications',
+            notificationsKey,
             JSON.stringify({
               sessionAlerts: next.notifySessionAlerts,
               reportReady: next.notifyReportReady,
@@ -146,10 +134,15 @@ export function SettingsContextProvider({ children }: { children: ReactNode }) {
 
   const resetSettings = () => {
     try {
-      localStorage.removeItem('ns_theme');
-      localStorage.removeItem('ns_density');
-      localStorage.removeItem('ns_ai_config');
-      localStorage.removeItem('ns_notifications');
+      const themeKey = `ns_${userId}_theme`;
+      const densityKey = `ns_${userId}_density`;
+      const aiConfigKey = `ns_${userId}_ai_config`;
+      const notificationsKey = `ns_${userId}_notifications`;
+
+      localStorage.removeItem(themeKey);
+      localStorage.removeItem(densityKey);
+      localStorage.removeItem(aiConfigKey);
+      localStorage.removeItem(notificationsKey);
     } catch (err) {
       console.error('Failed to clear keys from localStorage', err);
     }

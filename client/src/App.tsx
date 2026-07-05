@@ -20,6 +20,9 @@ import ReportsTab from '@/pages/PatientProfile/tabs/ReportsTab';
 import AskTab from '@/pages/PatientProfile/tabs/AskTab';
 import SessionDetailPage from '@/pages/SessionDetail/SessionDetailPage';
 import SettingsPage from '@/pages/Settings/SettingsPage';
+import GlobalSessionsPlaceholderPage from '@/pages/Sessions/GlobalSessionsPlaceholderPage';
+import GlobalReportsPlaceholderPage from '@/pages/Reports/GlobalReportsPlaceholderPage';
+import GlobalTrendsPlaceholderPage from '@/pages/Trends/GlobalTrendsPlaceholderPage';
 
 import NotFoundPage from '@/pages/NotFound/NotFoundPage';
 
@@ -93,6 +96,36 @@ const router = createBrowserRouter([
         ),
       },
 
+
+      // Global Sessions Placeholder
+      {
+        path: 'sessions',
+        element: (
+          <ErrorBoundary>
+            <GlobalSessionsPlaceholderPage />
+          </ErrorBoundary>
+        ),
+      },
+
+      // Global Reports Placeholder
+      {
+        path: 'reports',
+        element: (
+          <ErrorBoundary>
+            <GlobalReportsPlaceholderPage />
+          </ErrorBoundary>
+        ),
+      },
+
+      // Global Trends Placeholder
+      {
+        path: 'trends',
+        element: (
+          <ErrorBoundary>
+            <GlobalTrendsPlaceholderPage />
+          </ErrorBoundary>
+        ),
+      },
 
       // Settings (Day 31)
       {
