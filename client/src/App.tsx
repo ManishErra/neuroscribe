@@ -18,6 +18,7 @@ import TimelineTab from '@/pages/PatientProfile/tabs/TimelineTab';
 import SessionsTab from '@/pages/PatientProfile/tabs/SessionsTab';
 import ReportsTab from '@/pages/PatientProfile/tabs/ReportsTab';
 import AskTab from '@/pages/PatientProfile/tabs/AskTab';
+import TrendsTab from '@/pages/PatientProfile/tabs/TrendsTab';
 import SessionDetailPage from '@/pages/SessionDetail/SessionDetailPage';
 import SettingsPage from '@/pages/Settings/SettingsPage';
 import GlobalSessionsPlaceholderPage from '@/pages/Sessions/GlobalSessionsPlaceholderPage';
@@ -80,6 +81,7 @@ const router = createBrowserRouter([
           { index: true,          element: <Navigate to="timeline" replace /> },
           { path: 'timeline',     element: <TimelineTab /> },
           { path: 'overview',     element: <OverviewTab /> },
+          { path: 'trends',       element: <TrendsTab /> },
           { path: 'sessions',     element: <SessionsTab /> },
           { path: 'reports',      element: <ReportsTab /> },
           { path: 'ask',          element: <AskTab /> },

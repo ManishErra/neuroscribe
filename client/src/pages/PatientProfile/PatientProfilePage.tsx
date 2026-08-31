@@ -179,6 +179,7 @@ export default function PatientProfilePage() {
         {[
           { path: 'timeline', label: 'Timeline' },
           { path: 'overview', label: 'Overview' },
+          { path: 'trends', label: 'Trends' },
           { path: 'sessions', label: 'Sessions' },
           { path: 'reports', label: 'Reports' },
           { path: 'ask', label: 'Ask NeuroScribe' },

@@ -8,10 +8,15 @@ import os
 _env_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path=_env_path)
 
-db_url = os.getenv("DATABASE_URL", "")
+db_url = os.getenv("DATABASE_URL", "sqlite:///neuroscribe_demo.db")
+if not db_url.strip():
+    db_url = "sqlite:///neuroscribe_demo.db"
+
 connect_args = {}
 if "postgresql" in db_url or "postgres" in db_url:
     connect_args["sslmode"] = "require"
+elif "sqlite" in db_url:
+    connect_args["check_same_thread"] = False
 
 engine = create_engine(
     db_url,

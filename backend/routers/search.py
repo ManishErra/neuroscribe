@@ -119,6 +119,10 @@ def ask_question(
     except Exception as e:
         print(f"[ERROR] Failed to enrich structured answer: {e}")
 
+    # STEP 5.5 — Clear chunks_used if no relevant information is present in the report
+    if isinstance(parsed_answer, str) and ("does not contain" in parsed_answer.lower() or "no relevant medical context" in parsed_answer.lower()):
+        results = []
+
     # STEP 6 — final API response
     return {
         "question": request.question,

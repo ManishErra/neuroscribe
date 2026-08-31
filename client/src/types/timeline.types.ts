@@ -1,14 +1,25 @@
 // Shared Timeline types — API response shape from /timeline/.
 // Architecture ref: frontend_architecture.md §3.5
 
-export interface TimelineEntry {
-  date: string;
+export interface LabHistoryItem {
   report_id: string;
-  labs: Record<string, string>;  // e.g. { hemoglobin: "9.2", wbc: "14.5" }
+  report_date: string | null;
+  value: string;
+  numeric_value: number | null;
+  unit: string;
+  status: string;
 }
 
-export interface PatientTimeline {
+export interface LabTimelineDetails {
+  report_count: number;
+  latest_value: string | null;
+  latest_date: string | null;
+  trend: 'IMPROVING' | 'DECLINING' | 'STABLE' | 'INSUFFICIENT_DATA';
+  history: LabHistoryItem[];
+}
+
+export interface PatientTimelineResponse {
   patient_id: string;
   patient_name: string;
-  timeline: TimelineEntry[];
+  timeline: Record<string, LabTimelineDetails>;
 }

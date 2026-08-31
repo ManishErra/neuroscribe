@@ -2,6 +2,8 @@ import { useParams } from 'react-router-dom';
 import { usePatientOverview } from '@/features/insights/hooks/usePatientOverview';
 import { usePatientInsights } from '@/features/insights/hooks/usePatientInsights';
 import { usePatient } from '@/features/patients/hooks/usePatient';
+import { useSessions } from '@/features/sessions/hooks/useSessions';
+import { useReports } from '@/features/reports/hooks/useReports';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -21,6 +23,8 @@ import {
 } from 'lucide-react';
 import { useSettings } from '@/store/SettingsContext';
 import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
+import { formatDate } from '@/utils/formatters';
 
 export default function OverviewTab() {
   const { patientId } = useParams<{ patientId: string }>();
@@ -30,8 +34,49 @@ export default function OverviewTab() {
   const { data: patient, isLoading: isPatientLoading } = usePatient(patientId);
   const { data: overview, isLoading: isOverviewLoading, isError: isOverviewError } = usePatientOverview(patientId);
   const { data: insights, isLoading: isInsightsLoading, isError: isInsightsError } = usePatientInsights(patientId);
+  const { data: sessions, isLoading: isSessionsLoading } = useSessions(patientId);
+  const { data: reports, isLoading: isReportsLoading } = useReports(patientId);
 
-  const isLoading = isPatientLoading || isOverviewLoading || isInsightsLoading;
+  const isLoading = isPatientLoading || isOverviewLoading || isInsightsLoading || isSessionsLoading || isReportsLoading;
+
+  const recentActivities = useMemo(() => {
+    const events: Array<{
+      id: string;
+      title: string;
+      description: string;
+      date: string;
+      dateObj: Date;
+    }> = [];
+
+    if (sessions) {
+      sessions.forEach(s => {
+        events.push({
+          id: `sess-${s.id}`,
+          title: s.note_finalized ? 'SOAP Note Finalized' : s.has_note ? 'SOAP Note Draft Review' : 'Consultation Session Created',
+          description: s.note_finalized ? 'Session finalized and database note locked.' : s.has_note ? 'Session transcribed and draft note prepared.' : 'Session audio captured or created.',
+          date: s.session_date,
+          dateObj: new Date(s.session_date)
+        });
+      });
+    }
+
+    if (reports) {
+      reports.forEach(r => {
+        events.push({
+          id: `rep-${r.id}`,
+          title: r.ocr_status === 'ready' ? 'Report OCR Ingested' : r.ocr_status === 'pending' ? 'Report Ingestion Pending' : 'Report Extraction Failed',
+          description: r.ocr_status === 'ready' ? `Parsed "${r.original_filename}" text successfully.` : `Ingestion file "${r.original_filename}" uploaded.`,
+          date: r.created_at || '',
+          dateObj: r.created_at ? new Date(r.created_at) : new Date()
+        });
+      });
+    }
+
+    // Sort descending by date
+    return events
+      .sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime())
+      .slice(0, 5); // show latest 5
+  }, [sessions, reports]);
 
   if (isOverviewError || isInsightsError) {
     return (
@@ -309,45 +354,31 @@ export default function OverviewTab() {
             </div>
           </CardHeader>
           <CardContent className={cn('relative', isCompact ? 'p-4' : 'p-6')}>
-            {/* Timeline line */}
-            <div className="absolute left-6.5 top-8 bottom-8 w-[1.5px] bg-[#E2E8E4]" />
+            {recentActivities.length > 0 && (
+              <div className="absolute left-6.5 top-8 bottom-8 w-[1.5px] bg-[#E2E8E4]" />
+            )}
 
             <div className="flex flex-col gap-5">
-              {/* Event 1 */}
-              <div className="flex gap-4 relative items-start">
-                <div className="h-5 w-5 rounded-full bg-[#466551] flex items-center justify-center text-white text-[9px] shrink-0 font-bold z-10 shadow-sm">
-                  1
+              {recentActivities.length === 0 ? (
+                <div className="text-center text-xs text-[#747783] italic py-4">
+                  No clinical activities recorded.
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1a1c1a]">SOAP Note Finalized</h4>
-                  <p className="text-[10px] text-[#424843] mt-0.5">Session finalized & vectors added to patient store.</p>
-                  <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">Today, 2:15 PM</span>
-                </div>
-              </div>
-
-              {/* Event 2 */}
-              <div className="flex gap-4 relative items-start">
-                <div className="h-5 w-5 rounded-full bg-[#466551]/20 text-[#466551] flex items-center justify-center text-[9px] shrink-0 font-bold z-10 border border-[#466551]/30">
-                  2
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1a1c1a]">Transcript Transcribed</h4>
-                  <p className="text-[10px] text-[#424843] mt-0.5">Ambient WAV upload converted to speaker text.</p>
-                  <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">Today, 2:12 PM</span>
-                </div>
-              </div>
-
-              {/* Event 3 */}
-              <div className="flex gap-4 relative items-start">
-                <div className="h-5 w-5 rounded-full bg-[#466551]/20 text-[#466551] flex items-center justify-center text-[9px] shrink-0 font-bold z-10 border border-[#466551]/30">
-                  3
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1a1c1a]">Lab PDF Uploaded & OCR Readied</h4>
-                  <p className="text-[10px] text-[#424843] mt-0.5">Report parsed with magic byte verification.</p>
-                  <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">Yesterday, 10:45 AM</span>
-                </div>
-              </div>
+              ) : (
+                recentActivities.map((event, idx) => (
+                  <div key={event.id} className="flex gap-4 relative items-start">
+                    <div className="h-5 w-5 rounded-full bg-[#466551] flex items-center justify-center text-white text-[9px] shrink-0 font-bold z-10 shadow-sm">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#1a1c1a]">{event.title}</h4>
+                      <p className="text-[10px] text-[#424843] mt-0.5">{event.description}</p>
+                      <span className="text-[9px] font-semibold text-[#424843]/60 block mt-1">
+                        {formatDate(event.date)}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

@@ -8,7 +8,7 @@ import json
 import uuid
 import sys
 
-BASE = "http://localhost:8000"
+BASE = "http://127.0.0.1:8000"
 PASS = "PASS"
 FAIL = "FAIL"
 
@@ -289,6 +289,7 @@ print("\n── 6. RAG WORKFLOW ──")
 # 6a. Query: "What is the diagnosis?"
 try:
     r = requests.post(f"{BASE}/ask/", json={
+        "patient_id": patient_a_id,
         "question": "What is the diagnosis?",
         "top_k": 5
     }, headers=headers)
@@ -326,14 +327,21 @@ try:
     b_owners = set(m.get("owner_id", "MISSING") for m in b_chunks)
     log("7c_owner_isolation", PASS, f"A owners: {a_owners}, B owners: {b_owners}")
 
-    # CRITICAL FINDING: The /ask/ endpoint does NOT accept patient_id.
-    # All queries return chunks from ALL of this doctor's patients.
-    # This means asking "What is the diagnosis?" inside Patient A's workspace
-    # will return chunks from BOTH Patient A AND Patient B.
-    log("7d_patient_level_isolation", FAIL,
-        "CRITICAL: /ask/ endpoint filters by owner_id only, NOT patient_id. "
-        "Cross-patient leakage exists within same doctor's workspace. "
-        "The frontend AskTab may pass patient_id but backend ignores it.")
+    r = requests.post(f"{BASE}/ask/", json={
+        "patient_id": patient_a_id,
+        "question": "What is the diagnosis?",
+        "top_k": 5
+    }, headers=headers)
+    assert r.status_code == 200
+    rag = r.json()
+    chunks = rag.get("chunks_used", [])
+    
+    # Verify that all chunks belong to Patient A
+    leakage = [c for c in chunks if c.get("patient_id") != patient_a_id]
+    if len(leakage) == 0 and len(chunks) > 0:
+        log("7d_patient_level_isolation", PASS, f"Confirmed: All {len(chunks)} chunks belong strictly to Patient A (no leakage)")
+    else:
+        log("7d_patient_level_isolation", FAIL, f"Leakage detected! Chunks: {chunks}")
 
 except Exception as e:
     log("7_isolation_test", FAIL, str(e))
@@ -349,13 +357,10 @@ try:
     other_token = r.json()["access_token"]
     other_headers = {"Authorization": f"Bearer {other_token}"}
 
-    # Other doctor queries — should get no results
-    r = requests.post(f"{BASE}/ask/", json={"question": "What is the diagnosis?", "top_k": 5}, headers=other_headers)
-    assert r.status_code == 200
-    other_rag = r.json()
-    other_chunks = other_rag.get("chunks_used", [])
-    log("7e_cross_user_isolation", PASS if len(other_chunks) == 0 else FAIL,
-        f"Other doctor got {len(other_chunks)} chunks (expected 0)")
+    # Other doctor queries Patient A — should get 404 access denied
+    r = requests.post(f"{BASE}/ask/", json={"patient_id": patient_a_id, "question": "What is the diagnosis?", "top_k": 5}, headers=other_headers)
+    log("7e_cross_user_isolation", PASS if r.status_code == 404 else FAIL,
+        f"Other doctor got status {r.status_code} (expected 404)")
 except Exception as e:
     log("7e_cross_user_isolation", FAIL, str(e))
 

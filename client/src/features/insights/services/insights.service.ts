@@ -4,6 +4,7 @@
 import client from '@/api/axiosClient';
 import type { PatientOverview } from '@/types/patient.types';
 import type { PatientInsights } from '@/types/insight.types';
+import type { PatientTimelineResponse } from '@/types/timeline.types';
 
 /**
  * Fetch a high-level patient overview for the dashboard cards.
@@ -20,3 +21,9 @@ export async function fetchPatientInsights(patientId: string): Promise<PatientIn
   return client.get(`/patient-insights/${patientId}`);
 }
 
+/**
+ * Fetch detailed longitudinal laboratory timeline and trend history for a patient.
+ */
+export async function fetchPatientTimeline(patientId: string): Promise<PatientTimelineResponse> {
+  return client.get(`/timeline/${patientId}`);
+}

@@ -1,6 +1,11 @@
 import sys
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env before anything else so CORS_ALLOWED_ORIGINS is visible
+_env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=_env_path)
 
 # Add backend directory to sys.path to guarantee that unmodified local absolute imports 
 # in the repository (e.g. from audio.py, notes.py) resolve cleanly.
@@ -112,14 +117,26 @@ async def add_security_headers(request: Request, call_next):
 # CORS
 # =========================================
 
+# Build CORS origins list.
+# Always include local dev origins.
+# Append any extra origins from CORS_ALLOWED_ORIGINS env var (comma-separated).
+_default_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+_extra_origins_raw = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+_extra_origins = [
+    origin.strip()
+    for origin in _extra_origins_raw.split(",")
+    if origin.strip()
+]
+_allowed_origins = list(dict.fromkeys(_default_origins + _extra_origins))
+
 app.add_middleware(
 
     CORSMiddleware,
 
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173"
-    ],
+    allow_origins=_allowed_origins,
 
     allow_credentials=True,
 
@@ -144,6 +161,9 @@ uploads_dir.mkdir(parents=True, exist_ok=True)
 
 @app.on_event("startup")
 def startup_validation():
+    import models
+    from database import engine, Base
+    Base.metadata.create_all(bind=engine)
     from startup_validation import validate_startup_environment
     validate_startup_environment()
 

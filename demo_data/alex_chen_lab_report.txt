@@ -1,0 +1,54 @@
+DEMO PATIENT LAB REPORT — SYNTHETIC DATA
+Report ID: DEMO-2024-001
+Patient: Alex Chen
+Sex/Age: Male/34Y
+Date: 15-Jan-2024
+Lab: NeuroScribe Demo Laboratory
+
+=== COMPLETE BLOOD COUNT ===
+
+Hemoglobin: 9.2 g/dL  [Reference: 13.0 - 17.0]  ** LOW **
+RBC Count: 3.1 million/cmm  [Reference: 4.5 - 5.5]  ** LOW **
+WBC Count: 12500 /cmm  [Reference: 4000 - 11000]  ** HIGH **
+Platelets: 380000 /cmm  [Reference: 150000 - 400000]  NORMAL
+Hematocrit: 29.5 %  [Reference: 40 - 50]  ** LOW **
+MCV: 82.0 fL  [Reference: 83 - 101]  LOW
+MCH: 28.6 pg  [Reference: 27 - 33]  NORMAL
+
+=== BIOCHEMISTRY ===
+
+Fasting Blood Glucose: 141.0 mg/dL  [Reference: 70 - 99]  ** HIGH **
+HbA1c: 7.2 %  [Reference: <5.7 Non-Diabetic]  ** HIGH (Diabetic Range) **
+Creatinine: 1.1 mg/dL  [Reference: 0.7 - 1.2]  NORMAL
+Sodium: 138 mEq/L  [Reference: 136 - 146]  NORMAL
+Potassium: 4.2 mEq/L  [Reference: 3.5 - 5.1]  NORMAL
+
+=== LIPID PROFILE ===
+
+Total Cholesterol: 210 mg/dL  [Reference: <200]  ** BORDERLINE HIGH **
+Triglycerides: 185 mg/dL  [Reference: <150]  ** HIGH **
+HDL Cholesterol: 38 mg/dL  [Reference: >40]  ** LOW **
+LDL Cholesterol: 135 mg/dL  [Reference: <100]  ** HIGH **
+
+=== CLINICAL INTERPRETATION ===
+
+1. Anemia: Patient presents with low hemoglobin (9.2 g/dL), low RBC count,
+   and low hematocrit. Findings are consistent with moderate anemia.
+   Recommend iron studies and reticulocyte count.
+
+2. Diabetes: Elevated fasting glucose (141 mg/dL) and HbA1c (7.2%)
+   indicate poorly controlled diabetes. Patient is in diabetic range.
+   Recommend dietary counseling and medication review.
+
+3. Leukocytosis: Elevated WBC count (12500) may indicate active infection
+   or inflammatory process. Clinical correlation recommended.
+
+4. Dyslipidemia: Borderline high total cholesterol with elevated triglycerides
+   and low HDL. Cardiovascular risk assessment advised.
+
+=== MEDICATIONS ON RECORD ===
+- Metformin 500 mg twice daily
+- Ferrous sulfate 325 mg once daily
+
+Reported by: Dr. Demo Pathologist, MD
+Status: FINAL REPORT — Electronically Authenticated
