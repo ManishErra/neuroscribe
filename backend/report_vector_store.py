@@ -389,6 +389,54 @@ def load_vector_store() -> None:
     _chunk_metadata = metadata
 
 
+def rebuild_vector_store_from_db(db) -> int:
+    """
+    Rebuild FAISS vector index and metadata from SQL DB if the index is empty/missing.
+    Only triggers if _index is empty (_index.ntotal == 0).
+    If _index has vectors, rebuild is safely skipped to avoid duplicate embeddings.
+    """
+    global _index, _chunk_metadata
+
+    if _index is not None and _index.ntotal > 0:
+        logger.info("FAISS vector store already populated (%d vectors). Rebuild skipped.", _index.ntotal)
+        return 0
+
+    from models import Report, Patient
+
+    try:
+        ready_reports = (
+            db.query(Report, Patient.owner_id)
+            .join(Patient, Report.patient_id == Patient.id)
+            .filter(Report.ocr_status == "ready", Report.ocr_text.isnot(None))
+            .all()
+        )
+    except Exception as exc:
+        logger.error("Failed to query DB for FAISS rebuild: %s", exc)
+        return 0
+
+    if not ready_reports:
+        logger.info("No ready reports found in database for FAISS rebuild.")
+        return 0
+
+    logger.info("FAISS index empty. Rebuilding vector store from %d ready reports...", len(ready_reports))
+    reindexed_count = 0
+    for report, owner_id in ready_reports:
+        if report.ocr_text and report.ocr_text.strip():
+            try:
+                add_report_embeddings(
+                    report_id=str(report.id),
+                    patient_id=str(report.patient_id),
+                    report_text=report.ocr_text,
+                    owner_id=str(owner_id),
+                )
+                reindexed_count += 1
+            except Exception as exc:
+                logger.error("Failed to index report %s during rebuild: %s", report.id, exc)
+
+    logger.info("FAISS vector store rebuild completed (%d vectors indexed from %d reports).", _index.ntotal if _index else 0, reindexed_count)
+    return reindexed_count
+
+
 def add_report_embeddings(
     report_id: str,
     patient_id: str,

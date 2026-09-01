@@ -162,10 +162,22 @@ uploads_dir.mkdir(parents=True, exist_ok=True)
 @app.on_event("startup")
 def startup_validation():
     import models
-    from database import engine, Base
+    from database import engine, Base, SessionLocal
     Base.metadata.create_all(bind=engine)
     from startup_validation import validate_startup_environment
     validate_startup_environment()
+
+    # Rebuild FAISS vector store if empty/missing
+    try:
+        from report_vector_store import rebuild_vector_store_from_db
+        db = SessionLocal()
+        try:
+            rebuild_vector_store_from_db(db)
+        finally:
+            db.close()
+    except Exception as exc:
+        import logging
+        logging.getLogger("main").warning("FAISS vector store startup rebuild skipped: %s", exc)
 
 
 # =========================================
