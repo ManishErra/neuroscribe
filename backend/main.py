@@ -161,23 +161,60 @@ uploads_dir.mkdir(parents=True, exist_ok=True)
 
 @app.on_event("startup")
 def startup_validation():
-    import models
-    from database import engine, Base, SessionLocal
-    Base.metadata.create_all(bind=engine)
-    from startup_validation import validate_startup_environment
-    validate_startup_environment()
+    """
+    Keep the web process responsive while running heavyweight startup checks.
 
-    # Rebuild FAISS vector store if empty/missing
-    try:
-        from report_vector_store import rebuild_vector_store_from_db
-        db = SessionLocal()
+    Railway health checks must be able to reach the process even when database
+    initialization, embedding validation, or FAISS recovery takes time.
+    """
+    import logging
+    import threading
+
+    logger = logging.getLogger("main")
+
+    def initialize_in_background():
         try:
-            rebuild_vector_store_from_db(db)
-        finally:
-            db.close()
-    except Exception as exc:
-        import logging
-        logging.getLogger("main").warning("FAISS vector store startup rebuild skipped: %s", exc)
+            import models
+            from database import engine, Base, SessionLocal
+
+            Base.metadata.create_all(bind=engine)
+
+            from startup_validation import validate_startup_environment
+            validate_startup_environment()
+
+            # Rebuild FAISS vector store if empty/missing.
+            try:
+                from report_vector_store import rebuild_vector_store_from_db
+                db = SessionLocal()
+                try:
+                    rebuild_vector_store_from_db(db)
+                finally:
+                    db.close()
+            except Exception as exc:
+                logger.warning(
+                    "FAISS vector store startup rebuild skipped: %s",
+                    exc,
+                )
+
+            logger.info("Background startup initialization completed.")
+        except Exception as exc:
+            logger.error(
+                "Background startup initialization failed: %s",
+                exc,
+                exc_info=True,
+            )
+
+    threading.Thread(
+        target=initialize_in_background,
+        name="neuroscribe-startup-init",
+        daemon=True,
+    ).start()
+
+
+@app.get("/health")
+def health():
+    """Lightweight liveness endpoint for Railway health checks."""
+    return {"status": "ok"}
 
 
 # =========================================
