@@ -159,20 +159,17 @@ uploads_dir.mkdir(parents=True, exist_ok=True)
 # STARTUP VALIDATION
 # =========================================
 
-@app.on_event("startup")
-def startup_validation():
+def _start_background_initialization():
     """
-    Keep the web process responsive while running heavyweight startup checks.
-
-    Railway health checks must be able to reach the process even when database
-    initialization, embedding validation, or FAISS recovery takes time.
+    Start heavyweight database/RAG initialization without participating in
+    FastAPI's startup lifecycle, so the HTTP server can become live immediately.
     """
     import logging
     import threading
 
     logger = logging.getLogger("main")
 
-    def initialize_in_background():
+    def initialize():
         try:
             import models
             from database import engine, Base, SessionLocal
@@ -182,7 +179,6 @@ def startup_validation():
             from startup_validation import validate_startup_environment
             validate_startup_environment()
 
-            # Rebuild FAISS vector store if empty/missing.
             try:
                 from report_vector_store import rebuild_vector_store_from_db
                 db = SessionLocal()
@@ -205,7 +201,7 @@ def startup_validation():
             )
 
     threading.Thread(
-        target=initialize_in_background,
+        target=initialize,
         name="neuroscribe-startup-init",
         daemon=True,
     ).start()
@@ -215,6 +211,10 @@ def startup_validation():
 def health():
     """Lightweight liveness endpoint for Railway health checks."""
     return {"status": "ok"}
+
+
+# Start heavyweight initialization outside FastAPI's startup lifecycle.
+_start_background_initialization()
 
 
 # =========================================
