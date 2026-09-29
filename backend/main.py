@@ -213,10 +213,6 @@ def health():
     return {"status": "ok"}
 
 
-# Start heavyweight initialization outside FastAPI's startup lifecycle.
-_start_background_initialization()
-
-
 # =========================================
 # ROUTER REGISTRATION
 # =========================================
