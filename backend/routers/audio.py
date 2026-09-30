@@ -22,6 +22,7 @@ from models import (
 
 import os
 import uuid
+import logging
 
 from dotenv import load_dotenv
 from auth_utils import get_current_user
@@ -43,6 +44,8 @@ async def scan_file_for_malware(file: UploadFile) -> MalwareScanResult:
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 
 # =========================================
 # ROUTER
@@ -55,9 +58,10 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 # GROQ CLIENT
 # =========================================
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_STT_MODEL = os.getenv("GROQ_STT_MODEL", "whisper-large-v3").strip()
+
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 
 # =========================================
@@ -314,34 +318,46 @@ async def upload_audio(
 
         else:
 
-            with open(file_path, "rb") as audio_file:
-
-                transcription = (
-                    client.audio.transcriptions.create(
-
-                        model="whisper-large-v3",
-
-                        file=audio_file,
-
-                        language="en",
-
-                        response_format="text"
-                    )
+            if client is None:
+                cleanup_file(file_path)
+                logger.error(
+                    "Groq transcription unavailable: GROQ_API_KEY is not configured"
+                )
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "code": "GROQ_TRANSCRIPTION_UNAVAILABLE",
+                        "message": "Transcription service is not configured."
+                    }
                 )
 
-            transcript_text = str(
-                transcription
-            )
+            with open(file_path, "rb") as audio_file:
+                transcription = client.audio.transcriptions.create(
+                    model=GROQ_STT_MODEL,
+                    file=audio_file,
+                    language="en",
+                    response_format="text"
+                )
 
-    except Exception as e:
+            transcript_text = str(transcription)
 
+    except HTTPException:
         cleanup_file(file_path)
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Transcription failed: {str(e)}"
+        raise
+    except Exception:
+        cleanup_file(file_path)
+        logger.exception(
+            "Groq transcription failed for session_id=%s using model=%s",
+            session_id,
+            GROQ_STT_MODEL,
         )
-
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "GROQ_TRANSCRIPTION_FAILED",
+                "message": "The transcription provider failed to process the audio. Please retry."
+            }
+        )
     # =====================================
     # CLEANUP TEMP FILE
     # =====================================

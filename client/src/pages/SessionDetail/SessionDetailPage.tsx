@@ -133,9 +133,9 @@ export default function SessionDetailPage() {
   };
 
   const handleGenerateNote = () => {
-    if (!session?.transcript || !patient || !sessionId) return;
+    if (!session?.transcript || !patient || !sessionId || !session.transcript_id) return;
     generateNoteMutation.mutate({
-      transcriptId: sessionId,
+      transcriptId: session.transcript_id,
       patientName: patient.name,
       patientAge: patient.age,
     });

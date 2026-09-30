@@ -45,11 +45,13 @@ def _get_groq_client() -> Groq | None:
 
 # ---------------------------------------------------------------------------
 # Model selection — can be overridden via env var for flexibility.
-# Default: llama-3.3-70b-versatile (confirmed active on Groq, Aug 2026)
-# Alternatives: qwen/qwen3.6-27b, qwen/qwen3.8-27b, llama-3.1-8b-instant
+# Default to a currently configured production model; Railway can override
+# this with GROQ_MODEL. Older deprecated IDs are remapped for compatibility.
 # See: https://console.groq.com/docs/models
 
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
+if GROQ_MODEL in {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}:
+    GROQ_MODEL = "openai/gpt-oss-20b"
 
 
 def _try_structured_extraction(

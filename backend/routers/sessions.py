@@ -35,6 +35,9 @@ def get_patient_sessions(
     result = []
 
     for s in sessions:
+        transcript = db.query(Transcript).filter(
+            Transcript.session_id == s.id
+        ).first()
 
         note = db.query(Note).filter(
             Note.session_id == s.id
@@ -44,7 +47,8 @@ def get_patient_sessions(
             "id": str(s.id),
             "session_date": str(s.session_date),
             "has_note": note is not None,
-            "note_finalized": note.is_finalized if note else False
+            "note_finalized": note.is_finalized if note else False,
+            "transcript_id": str(transcript.id) if transcript else None
         })
 
     return result
@@ -83,6 +87,7 @@ def get_session(
     return {
         "id": str(s.id),
         "session_date": str(s.session_date),
+        "transcript_id": str(transcript.id) if transcript else None,
         "transcript": transcript.raw_text if transcript else None,
         "note": json.loads(note.doctor_edited)
             if (note and note.doctor_edited)
@@ -111,10 +116,10 @@ def create_session(
         raise HTTPException(404, "Patient not found")
 
     session = SessionModel(
-    id=uuid.uuid4(),
-    patient_id=data.patient_id,
-    session_date=date.today()
-)
+        id=uuid.uuid4(),
+        patient_id=data.patient_id,
+        session_date=date.today()
+    )
 
     db.add(session)
     db.commit()

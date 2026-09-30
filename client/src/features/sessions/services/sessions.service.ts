@@ -8,6 +8,7 @@ export interface SessionSummary {
   session_date: string;
   has_note: boolean;
   note_finalized: boolean;
+  transcript_id: string | null;
 }
 
 export interface ClinicalNote {
@@ -25,6 +26,7 @@ export interface ClinicalNote {
 export interface SessionDetail {
   id: string;
   session_date: string;
+  transcript_id: string | null;
   transcript: string | null;
   note: ClinicalNote | null;
   note_finalized: boolean;
