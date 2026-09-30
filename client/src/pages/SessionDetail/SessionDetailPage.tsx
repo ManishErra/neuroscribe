@@ -494,7 +494,7 @@ export default function SessionDetailPage() {
                         value={symptomsText}
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setSymptomsText(e.target.value)}
-                        placeholder="e.g. fatigue, insomnia, anxiety..."
+                        placeholder="No symptoms mentioned"
                         className={cn(
                           'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-10 p-2.5' : 'h-12 p-3.5'
@@ -514,7 +514,7 @@ export default function SessionDetailPage() {
                             'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text transition-all duration-200',
                             isCompact ? 'p-2' : 'p-3'
                           )}
-                          placeholder="Patient's words..."
+                          placeholder="Not mentioned"
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
@@ -528,7 +528,7 @@ export default function SessionDetailPage() {
                             'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text transition-all duration-200',
                             isCompact ? 'p-2' : 'p-3'
                           )}
-                          placeholder="Sleep duration/quality..."
+                          placeholder="Not mentioned"
                         />
                       </div>
                     </div>
@@ -544,7 +544,7 @@ export default function SessionDetailPage() {
                           'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text transition-all duration-200',
                           isCompact ? 'p-2' : 'p-3'
                         )}
-                        placeholder="Work pressure, support..."
+                        placeholder="Not mentioned"
                       />
                     </div>
                   </div>
@@ -560,7 +560,7 @@ export default function SessionDetailPage() {
                         value={medicationsText}
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setMedicationsText(e.target.value)}
-                        placeholder="e.g. Sertraline 50mg, Ibuprofen..."
+                        placeholder="No medications mentioned"
                         className={cn(
                           'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
@@ -580,7 +580,7 @@ export default function SessionDetailPage() {
                         value={noteState.flags_for_review}
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, flags_for_review: e.target.value })}
-                        placeholder="Review flags and diagnostic summaries..."
+                        placeholder="No review flags recorded"
                         className={cn(
                           'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-16 p-2.5' : 'h-24 p-3.5'
@@ -615,7 +615,7 @@ export default function SessionDetailPage() {
                         value={noteState.plan_discussed}
                         disabled={isNoteFinalized || isLoading}
                         onChange={(e) => setNoteState({ ...noteState, plan_discussed: e.target.value })}
-                        placeholder="Discussed therapy routines, medications adjustments, and follow-ups..."
+                        placeholder="No plan discussed"
                         className={cn(
                           'w-full text-xs font-semibold rounded-lg border border-border bg-[#f8f9fa] text-[#191c1d] placeholder:text-[#747783] focus:outline-none focus:ring-1 focus:ring-[#003d9b] disabled:opacity-50 select-text leading-relaxed transition-all duration-200',
                           isCompact ? 'h-24 p-2.5' : 'h-32 p-3.5'
