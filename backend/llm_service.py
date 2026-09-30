@@ -5,13 +5,12 @@ import logging
 from groq import Groq
 
 from clinical_entities import extract_clinical_entities
-
 from clinical_extractors import (
     extract_glucose,
     extract_hemoglobin,
 )
-
 from clinical_flags import classify_lab_result
+from query_intents import QueryIntent, detect_query_intent
 
 logger = logging.getLogger(__name__)
 
@@ -161,12 +160,36 @@ def try_structured_entity_answer(
     return None
 
 
-def _validate_evidence(context: str, question: str) -> bool:
+def _validate_evidence(context: str, question: str, intent: QueryIntent | None = None) -> bool:
     """
-    Generalized evidence validation layer.
-    Verifies that the retrieved context contains matching indicators 
-    for critical clinical concepts present in the user question.
+    Intent-aware evidence validation layer.
+    Verifies that the retrieved context contains valid indicators for clinical
+    concepts without requiring natural-language question phrasing to appear
+    literally in the source text.
     """
+    if not context or not context.strip():
+        return False
+
+    if intent is None:
+        intent = detect_query_intent(question)
+
+    # Treatment/recommendation questions are safely rejected directly
+    if intent == QueryIntent.MEDICATION_RECOMMENDATION:
+        return True
+
+    # High-level overview, consultation, and statement queries are satisfied
+    # by the presence of patient-scoped records in the context.
+    if intent in (
+        QueryIntent.PATIENT_OVERVIEW,
+        QueryIntent.LAST_CONSULTATION,
+        QueryIntent.PATIENT_STATEMENTS,
+        QueryIntent.RECENT_HISTORY,
+        QueryIntent.ACTIVE_MEDICATIONS,
+        QueryIntent.MEDICATION_HISTORY,
+    ):
+        if "[Source:" in context or len(context.strip()) > 30:
+            return True
+
     q_lower = question.lower()
     ctx_lower = context.lower()
 
@@ -176,11 +199,20 @@ def _validate_evidence(context: str, question: str) -> bool:
         ("pulse", "heart rate", "hr", "pulse rate"): ["pulse", "hr", "heart rate", "beats", "bpm"],
         ("temperature", "temp"): ["temp", "fever", "celsius", "fahrenheit", "body temperature", "temp."],
         ("oxygen saturation", "spo2", "sat", "oxygen"): ["spo2", "saturation", "oxygen sat"],
-        ("medication", "medications", "meds", "drug", "drugs"): ["medication", "medications", "meds", "prescribed", "therapy", "mg", "tablet", "cap", "capsule", "treatment", "dose"],
-        ("diagnosis", "diagnoses", "condition", "illness", "disorder"): ["diagnosis", "diagnoses", "diagnosed", "history", "condition", "illness", "disorder", "syndrome", "ref."]
+        ("medication", "medications", "meds", "drug", "drugs"): ["medication", "medications", "meds", "prescribed", "therapy", "mg", "tablet", "cap", "capsule", "treatment", "dose", "none", "no medication"],
+        ("diagnosis", "diagnoses", "condition", "illness", "disorder"): ["diagnosis", "diagnoses", "diagnosed", "history", "condition", "illness", "disorder", "syndrome", "ref."],
+        ("hemoglobin", "haemoglobin", "hgb", "hb"): ["hemoglobin", "haemoglobin", "hgb", "hb", "g/dl"],
+        ("glucose", "sugar", "blood sugar", "hba1c"): ["glucose", "sugar", "mg/dl", "mmol/l", "hba1c"],
+        ("platelet", "platelets", "plt"): ["platelet", "platelets", "plt", "10^3", "/ul"],
+        ("wbc", "white blood", "white blood cells"): ["wbc", "white blood", "leukocyte", "10^3"],
+        ("rbc", "red blood", "red blood cells"): ["rbc", "red blood", "erythrocyte", "10^6"],
+        ("creatinine", "creat"): ["creatinine", "creat", "mg/dl", "umol/l"],
+        ("sodium", "na"): ["sodium", "na", "mmol/l", "meq/l"],
+        ("potassium", "k"): ["potassium", "k", "mmol/l", "meq/l"],
+        ("bilirubin",): ["bilirubin", "mg/dl", "umol/l"],
     }
 
-    # First check: If a critical concept is requested, verify we have corresponding evidence terms
+    # First check: If a critical clinical concept is requested, verify we have corresponding evidence terms
     for trigger_keys, evidence_terms in clinical_triggers.items():
         if any(key in q_lower for key in trigger_keys):
             if not any(term in ctx_lower for term in evidence_terms):
@@ -192,16 +224,19 @@ def _validate_evidence(context: str, question: str) -> bool:
     words = cleaned_q.split()
 
     stop_words = {
-        "what", "is", "the", "patients", "patient", "level", "value", "count", "show", "me", 
-        "are", "there", "any", "for", "to", "in", "of", "about", "describe", "detail", 
-        "details", "info", "information", "a", "an", "does", "do", "has", "have", "give", 
+        "what", "is", "the", "patients", "patient", "level", "value", "count", "show", "me",
+        "are", "there", "any", "for", "to", "in", "of", "about", "describe", "detail",
+        "details", "info", "information", "a", "an", "does", "do", "has", "have", "had", "give",
         "tell", "retrieve", "search", "find", "check", "verify", "confirm", "rate", "level",
         "levels", "measurement", "measurements", "test", "tests", "result", "results",
-        "current", "history", "was", "were", "who", "when", "where", "how", "why"
+        "current", "history", "was", "were", "who", "when", "where", "how", "why", "say", "said",
+        "mention", "mentioned", "report", "reported", "during", "session", "sessions", "consultation",
+        "consultations", "last", "latest", "recent", "complaint", "complaints", "know", "overview",
+        "summary", "summarize", "take", "taking", "prescribe", "prescribed"
     }
 
     key_terms = [w for w in words if w not in stop_words and len(w) > 2]
-    high_freq_filter = {"blood", "cell", "cells", "report", "reports"}
+    high_freq_filter = {"blood", "cell", "cells", "report", "reports", "patient", "patients"}
     filtered_key_terms = [t for t in key_terms if t not in high_freq_filter]
 
     if filtered_key_terms:
@@ -214,7 +249,7 @@ def _validate_evidence(context: str, question: str) -> bool:
 def _call_groq_llm(context: str, question: str) -> str:
     """
     Call Groq API with the clinical QA prompt.
-    Preserves the original prompt structure verbatim.
+    Preserves strict clinical boundaries and hallucination prevention.
     Returns a string answer or raises an exception.
     """
     client = _get_groq_client()
@@ -232,6 +267,11 @@ RULES:
 - If the answer is not supported by the provided context, say exactly:
   "Not found in available records."
 - Do not assume the context is a laboratory report; it may be a report, consultation transcript, doctor note, AI note, or patient record.
+- If asked for treatment recommendations, prescriptions, or what medications a patient should take, state that NeuroScribe only reports documented clinical information and does not recommend treatment or prescribe medications.
+- For medication queries:
+  * If records document active/current medications, list only the documented medications.
+  * If records explicitly state that the patient takes no medication (or 'none'), state that no active medications are documented in the records.
+  * If no medication information is present in the records, say "Not found in available records." Never guess or recommend any medication.
 - Keep answers short and clinically precise.
 
 CLINICAL RECORD CONTEXT:
@@ -253,7 +293,7 @@ ANSWER:
                 }
             ],
             temperature=0.1,
-            max_completion_tokens=200,
+            max_completion_tokens=250,
         )
         return response.choices[0].message.content or "No response from LLM."
     except Exception as exc:
@@ -269,12 +309,17 @@ def generate_answer(
     NeuroScribe Clinical QA Pipeline
 
     Steps:
-    1. Regex deterministic extraction
-    2. Entity extraction
-    3. Hallucination prevention
-    3.5 Generalized evidence validation guard
+    0. Intent safety guard (e.g. medication/treatment recommendation refusal)
+    1. Regex deterministic extraction (hemoglobin, glucose)
+    2. Entity extraction (deterministic NLP parsing)
+    3. Hallucination prevention & evidence validation
     4. Groq LLM fallback
     """
+    intent = detect_query_intent(question)
+
+    # STEP 0 — Treatment/prescribing recommendation safety guard
+    if intent == QueryIntent.MEDICATION_RECOMMENDATION:
+        return "NeuroScribe only reports documented clinical information and does not recommend treatment or prescribe medications."
 
     # STEP 1 — regex extraction
     structured_answer = _try_structured_extraction(
@@ -294,11 +339,8 @@ def generate_answer(
     if entity_answer:
         return entity_answer
 
-    # STEP 3 — evidence validation.
-    # Deterministic extraction is preferred, but a failed extractor is NOT
-    # evidence that the information is absent. The retrieved context is passed
-    # to the LLM whenever it contains enough evidence to support an answer.
-    if not _validate_evidence(context, question):
+    # STEP 3 — evidence validation
+    if not _validate_evidence(context, question, intent):
         return "Not found in available records."
 
     # STEP 4 — Groq LLM fallback

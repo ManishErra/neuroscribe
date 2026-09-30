@@ -3,7 +3,9 @@ Unified patient-scoped clinical memory retrieval for Ask NeuroScribe.
 
 This module intentionally keeps retrieval patient-scoped at the database boundary
 and combines the existing report FAISS cache with durable database records:
-reports/OCR, consultation transcripts, notes, and basic patient/session context.
+reports/OCR, consultation transcripts, notes, and patient/session context.
+Retrieval priority is intent-aware to accurately answer clinical queries without
+relying solely on literal keyword overlap.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from typing import Any, Dict, List
 
 from models import Note, Patient, Report, Session as SessionModel, Transcript
 from report_vector_store import search_similar_chunks
+from query_intents import QueryIntent, detect_query_intent
 
 
 STOP_WORDS = {
@@ -30,12 +33,12 @@ STOP_WORDS = {
 
 QUERY_ALIASES = {
     "hemoglobin": {"hemoglobin", "haemoglobin", "hgb", "hb"},
-    "glucose": {"glucose", "sugar", "blood sugar"},
+    "glucose": {"glucose", "sugar", "blood sugar", "hba1c"},
     "platelet": {"platelet", "platelets", "plt"},
     "wbc": {"wbc", "white blood", "white blood cell", "white blood cells"},
     "rbc": {"rbc", "red blood", "red blood cell", "red blood cells"},
     "creatinine": {"creatinine", "creat"},
-    "medication": {"medication", "medications", "meds", "medicine", "drug", "drugs"},
+    "medication": {"medication", "medications", "meds", "medicine", "drug", "drugs", "prescription", "prescribed", "dose"},
     "sleep": {"sleep", "sleeping", "insomnia"},
     "mood": {"mood", "feeling", "feelings", "depressed", "anxious", "anxiety"},
     "symptoms": {"symptom", "symptoms", "complaint", "complaints"},
@@ -108,7 +111,7 @@ def _record(
         "similarity_score": round(max(0.0, min(0.99, score)), 4),
         "source_name": source_name,
         "source_date": source_date,
-        # Kept for backwards compatibility with the current Ask UI.
+        # Kept for backwards compatibility with the Ask UI.
         "report_source": source_name if source_type == "report" else None,
     }
 
@@ -165,35 +168,36 @@ def retrieve_patient_context(
         return []
 
     limit = max(1, min(int(top_k or 5), 10))
+    intent = detect_query_intent(question)
     candidates: List[Dict[str, Any]] = []
 
-    # 1) Existing FAISS report cache. It is treated as an optimization, never
-    # as the source of truth.
-    try:
-        faiss_results = search_similar_chunks(
-            query=question,
-            top_k=limit,
-            owner_id=owner_id,
-            patient_id=patient_id,
-        )
-        for hit in faiss_results:
-            candidates.append(
-                _record(
-                    source_type="report",
-                    source_id=str(hit["report_id"]),
-                    patient_id=patient_id,
-                    text=hit["chunk_text"],
-                    score=float(hit.get("similarity_score", 0.0)),
-                    source_name=hit.get("report_source"),
-                    chunk_index=int(hit.get("chunk_index", 0)),
-                )
-            )
-    except Exception:
-        # A missing/corrupt local FAISS cache must never break Ask.
-        pass
+    # Fetch patient's durable sessions and reports up front
+    sessions = (
+        db.query(SessionModel)
+        .filter(SessionModel.patient_id == patient_id)
+        .order_by(SessionModel.session_date.desc().nullslast(), SessionModel.created_at.desc())
+        .limit(30)
+        .all()
+    )
+    session_by_id = {str(session.id): session for session in sessions}
+    session_ids = [session.id for session in sessions]
 
-    # 2) Durable reports/OCR fallback. This is also useful when a report was
-    # uploaded before the current FAISS process started.
+    transcripts: List[Transcript] = []
+    notes: List[Note] = []
+    if session_ids:
+        transcripts = (
+            db.query(Transcript)
+            .filter(Transcript.session_id.in_(session_ids))
+            .order_by(Transcript.created_at.desc())
+            .all()
+        )
+        notes = (
+            db.query(Note)
+            .filter(Note.session_id.in_(session_ids))
+            .order_by(Note.created_at.desc())
+            .all()
+        )
+
     reports = (
         db.query(Report)
         .filter(
@@ -206,48 +210,318 @@ def retrieve_patient_context(
         .all()
     )
 
-    for report in reports:
-        chunks = _chunk_text(report.ocr_text or "")
-        for index, chunk in enumerate(chunks):
-            score = _score_text(chunk, question)
-            if score > 0:
-                candidates.append(
-                    _record(
+    # -------------------------------------------------------------------------
+    # INTENT-SPECIFIC RETRIEVAL ROUTING
+    # -------------------------------------------------------------------------
+
+    if intent == QueryIntent.LAST_CONSULTATION:
+        # Prioritize: 1. Latest consultation transcript, 2. Latest note, 3. Recent reports
+        if transcripts:
+            for idx, transcript in enumerate(transcripts[:2]):
+                session = session_by_id.get(str(transcript.session_id))
+                session_date = _date_string(session.session_date if session else transcript.created_at)
+                chunks = _chunk_text(transcript.raw_text or "", size=260, overlap=30)
+                for c_idx, chunk in enumerate(chunks):
+                    base_score = 0.95 if idx == 0 else 0.85
+                    score = max(0.60, base_score - (c_idx * 0.02))
+                    candidates.append(_record(
+                        source_type="transcript",
+                        source_id=str(transcript.id),
+                        patient_id=patient_id,
+                        text=chunk,
+                        score=score,
+                        source_name=f"Consultation — {session_date or 'undated'}",
+                        source_date=session_date,
+                        chunk_index=c_idx,
+                    ))
+
+        if notes:
+            for idx, note in enumerate(notes[:2]):
+                text = _note_text(note)
+                if text:
+                    session = session_by_id.get(str(note.session_id))
+                    session_date = _date_string(session.session_date if session else note.created_at)
+                    chunks = _chunk_text(text, size=240, overlap=30)
+                    for c_idx, chunk in enumerate(chunks):
+                        score = 0.90 if (idx == 0 and note.is_finalized) else 0.80
+                        candidates.append(_record(
+                            source_type="note",
+                            source_id=str(note.id),
+                            patient_id=patient_id,
+                            text=chunk,
+                            score=score,
+                            source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
+                            source_date=session_date,
+                            chunk_index=c_idx,
+                        ))
+
+    elif intent == QueryIntent.PATIENT_STATEMENTS:
+        # Primary source is the consultation transcript (what the patient said/reported)
+        if transcripts:
+            for idx, transcript in enumerate(transcripts[:3]):
+                session = session_by_id.get(str(transcript.session_id))
+                session_date = _date_string(session.session_date if session else transcript.created_at)
+                chunks = _chunk_text(transcript.raw_text or "", size=240, overlap=30)
+                for c_idx, chunk in enumerate(chunks):
+                    lex_score = _score_text(chunk, question)
+                    base_score = 0.96 if idx == 0 else 0.88
+                    score = max(base_score - (c_idx * 0.02), lex_score)
+                    candidates.append(_record(
+                        source_type="transcript",
+                        source_id=str(transcript.id),
+                        patient_id=patient_id,
+                        text=chunk,
+                        score=score,
+                        source_name=f"Consultation — {session_date or 'undated'}",
+                        source_date=session_date,
+                        chunk_index=c_idx,
+                    ))
+
+        # Secondary context: latest doctor note
+        if notes:
+            for note in notes[:1]:
+                text = _note_text(note)
+                if text:
+                    session = session_by_id.get(str(note.session_id))
+                    session_date = _date_string(session.session_date if session else note.created_at)
+                    chunks = _chunk_text(text, size=220, overlap=20)
+                    for c_idx, chunk in enumerate(chunks):
+                        candidates.append(_record(
+                            source_type="note",
+                            source_id=str(note.id),
+                            patient_id=patient_id,
+                            text=chunk,
+                            score=0.82,
+                            source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
+                            source_date=session_date,
+                            chunk_index=c_idx,
+                        ))
+
+    elif intent in (QueryIntent.ACTIVE_MEDICATIONS, QueryIntent.MEDICATION_HISTORY):
+        # Prioritize: 1. Finalized doctor notes, 2. Transcripts, 3. Medication reports
+        med_terms = QUERY_ALIASES["medication"]
+        for note in notes:
+            text = _note_text(note)
+            if not text:
+                continue
+            session = session_by_id.get(str(note.session_id))
+            session_date = _date_string(session.session_date if session else note.created_at)
+            chunks = _chunk_text(text)
+            for c_idx, chunk in enumerate(chunks):
+                has_med = any(term in chunk.lower() for term in med_terms)
+                score = 0.95 if (has_med and note.is_finalized) else (0.90 if has_med else 0.75)
+                candidates.append(_record(
+                    source_type="note",
+                    source_id=str(note.id),
+                    patient_id=patient_id,
+                    text=chunk,
+                    score=score,
+                    source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
+                    source_date=session_date,
+                    chunk_index=c_idx,
+                ))
+
+        for transcript in transcripts:
+            session = session_by_id.get(str(transcript.session_id))
+            session_date = _date_string(session.session_date if session else transcript.created_at)
+            chunks = _chunk_text(transcript.raw_text or "")
+            for c_idx, chunk in enumerate(chunks):
+                has_med = any(term in chunk.lower() for term in med_terms)
+                score = 0.88 if has_med else 0.70
+                candidates.append(_record(
+                    source_type="transcript",
+                    source_id=str(transcript.id),
+                    patient_id=patient_id,
+                    text=chunk,
+                    score=score,
+                    source_name=f"Consultation — {session_date or 'undated'}",
+                    source_date=session_date,
+                    chunk_index=c_idx,
+                ))
+
+        for report in reports:
+            chunks = _chunk_text(report.ocr_text or "")
+            for c_idx, chunk in enumerate(chunks):
+                has_med = any(term in chunk.lower() for term in med_terms)
+                score = 0.85 if has_med else 0.65
+                candidates.append(_record(
+                    source_type="report",
+                    source_id=str(report.id),
+                    patient_id=patient_id,
+                    text=chunk,
+                    score=score,
+                    source_name=report.original_filename or report.title or str(report.id),
+                    source_date=_date_string(report.report_date or report.created_at),
+                    chunk_index=c_idx,
+                ))
+
+    elif intent == QueryIntent.PATIENT_OVERVIEW:
+        # Combine: 1. Patient profile, 2. Latest doctor note, 3. Latest transcript, 4. Recent reports
+        patient_text = f"Patient name: {patient.name}; age: {patient.age}; gender: {patient.gender or 'not recorded'}."
+        candidates.append(_record(
+            source_type="patient",
+            source_id=str(patient.id),
+            patient_id=patient_id,
+            text=patient_text,
+            score=0.98,
+            source_name="Patient profile",
+        ))
+
+        if notes:
+            for note in notes[:2]:
+                text = _note_text(note)
+                if text:
+                    session = session_by_id.get(str(note.session_id))
+                    session_date = _date_string(session.session_date if session else note.created_at)
+                    chunks = _chunk_text(text, size=240, overlap=30)
+                    for c_idx, chunk in enumerate(chunks):
+                        candidates.append(_record(
+                            source_type="note",
+                            source_id=str(note.id),
+                            patient_id=patient_id,
+                            text=chunk,
+                            score=0.92 if note.is_finalized else 0.85,
+                            source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
+                            source_date=session_date,
+                            chunk_index=c_idx,
+                        ))
+
+        if transcripts:
+            for transcript in transcripts[:1]:
+                session = session_by_id.get(str(transcript.session_id))
+                session_date = _date_string(session.session_date if session else transcript.created_at)
+                chunks = _chunk_text(transcript.raw_text or "", size=240, overlap=30)
+                for c_idx, chunk in enumerate(chunks):
+                    candidates.append(_record(
+                        source_type="transcript",
+                        source_id=str(transcript.id),
+                        patient_id=patient_id,
+                        text=chunk,
+                        score=0.88,
+                        source_name=f"Consultation — {session_date or 'undated'}",
+                        source_date=session_date,
+                        chunk_index=c_idx,
+                    ))
+
+        if reports:
+            for report in reports[:2]:
+                chunks = _chunk_text(report.ocr_text or "", size=240, overlap=20)
+                for c_idx, chunk in enumerate(chunks):
+                    candidates.append(_record(
                         source_type="report",
                         source_id=str(report.id),
                         patient_id=patient_id,
                         text=chunk,
-                        score=score,
+                        score=0.82,
                         source_name=report.original_filename or report.title or str(report.id),
                         source_date=_date_string(report.report_date or report.created_at),
-                        chunk_index=index,
+                        chunk_index=c_idx,
+                    ))
+
+    elif intent == QueryIntent.RECENT_HISTORY:
+        # Retrieve a balanced set of recent consultations, doctor notes, and reports
+        if transcripts:
+            for transcript in transcripts[:2]:
+                session = session_by_id.get(str(transcript.session_id))
+                session_date = _date_string(session.session_date if session else transcript.created_at)
+                chunks = _chunk_text(transcript.raw_text or "", size=240, overlap=30)
+                for c_idx, chunk in enumerate(chunks):
+                    candidates.append(_record(
+                        source_type="transcript",
+                        source_id=str(transcript.id),
+                        patient_id=patient_id,
+                        text=chunk,
+                        score=0.92,
+                        source_name=f"Consultation — {session_date or 'undated'}",
+                        source_date=session_date,
+                        chunk_index=c_idx,
+                    ))
+
+        if notes:
+            for note in notes[:2]:
+                text = _note_text(note)
+                if text:
+                    session = session_by_id.get(str(note.session_id))
+                    session_date = _date_string(session.session_date if session else note.created_at)
+                    chunks = _chunk_text(text, size=240, overlap=30)
+                    for c_idx, chunk in enumerate(chunks):
+                        candidates.append(_record(
+                            source_type="note",
+                            source_id=str(note.id),
+                            patient_id=patient_id,
+                            text=chunk,
+                            score=0.90 if note.is_finalized else 0.85,
+                            source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
+                            source_date=session_date,
+                            chunk_index=c_idx,
+                        ))
+
+        if reports:
+            for report in reports[:2]:
+                chunks = _chunk_text(report.ocr_text or "", size=240, overlap=20)
+                for c_idx, chunk in enumerate(chunks):
+                    candidates.append(_record(
+                        source_type="report",
+                        source_id=str(report.id),
+                        patient_id=patient_id,
+                        text=chunk,
+                        score=0.85,
+                        source_name=report.original_filename or report.title or str(report.id),
+                        source_date=_date_string(report.report_date or report.created_at),
+                        chunk_index=c_idx,
+                    ))
+
+    else:
+        # GENERAL_CLINICAL / LAB_RESULT / Default retrieval
+        # 1) Existing FAISS report cache optimization
+        try:
+            faiss_results = search_similar_chunks(
+                query=question,
+                top_k=limit,
+                owner_id=owner_id,
+                patient_id=patient_id,
+            )
+            for hit in faiss_results:
+                candidates.append(
+                    _record(
+                        source_type="report",
+                        source_id=str(hit["report_id"]),
+                        patient_id=patient_id,
+                        text=hit["chunk_text"],
+                        score=float(hit.get("similarity_score", 0.0)),
+                        source_name=hit.get("report_source"),
+                        chunk_index=int(hit.get("chunk_index", 0)),
                     )
                 )
+        except Exception:
+            # A missing/corrupt local FAISS cache must never break Ask.
+            pass
 
-    # 3) Consultation transcripts.
-    sessions = (
-        db.query(SessionModel)
-        .filter(SessionModel.patient_id == patient_id)
-        .order_by(SessionModel.session_date.desc().nullslast(), SessionModel.created_at.desc())
-        .limit(30)
-        .all()
-    )
-    session_by_id = {str(session.id): session for session in sessions}
+        # 2) Durable reports/OCR search
+        for report in reports:
+            chunks = _chunk_text(report.ocr_text or "")
+            for index, chunk in enumerate(chunks):
+                score = _score_text(chunk, question)
+                if score > 0:
+                    candidates.append(
+                        _record(
+                            source_type="report",
+                            source_id=str(report.id),
+                            patient_id=patient_id,
+                            text=chunk,
+                            score=score,
+                            source_name=report.original_filename or report.title or str(report.id),
+                            source_date=_date_string(report.report_date or report.created_at),
+                            chunk_index=index,
+                        )
+                    )
 
-    if sessions:
-        transcripts = (
-            db.query(Transcript)
-            .filter(Transcript.session_id.in_([session.id for session in sessions]))
-            .order_by(Transcript.created_at.desc())
-            .all()
-        )
+        # 3) Consultation transcripts search
         for transcript in transcripts:
             session = session_by_id.get(str(transcript.session_id))
             session_date = _date_string(session.session_date if session else transcript.created_at)
             for index, chunk in enumerate(_chunk_text(transcript.raw_text or "")):
                 score = _score_text(chunk, question)
-                # Consultation-oriented questions should be able to surface a
-                # recent transcript even when the query has few exact terms.
                 if score > 0:
                     candidates.append(
                         _record(
@@ -262,14 +536,7 @@ def retrieve_patient_context(
                         )
                     )
 
-    # 4) Notes. Finalized doctor notes are preferred over AI drafts.
-    if sessions:
-        notes = (
-            db.query(Note)
-            .filter(Note.session_id.in_([session.id for session in sessions]))
-            .order_by(Note.created_at.desc())
-            .all()
-        )
+        # 4) Notes search
         for note in notes:
             text = _note_text(note)
             if not text:
@@ -292,49 +559,44 @@ def retrieve_patient_context(
                         )
                     )
 
-    # 5) Structured patient context. Only include it when the question appears
-    # to ask for basic patient facts, so it does not pollute clinical answers.
-    patient_question_terms = {"age", "gender", "sex", "name", "demographic", "demographics"}
-    if patient_question_terms.intersection(_expanded_query_terms(question)):
-        patient_text = f"Patient name: {patient.name}; age: {patient.age}; gender: {patient.gender or 'not recorded'}."
-        candidates.append(
-            _record(
-                source_type="patient",
-                source_id=str(patient.id),
-                patient_id=patient_id,
-                text=patient_text,
-                score=0.85,
-                source_name="Patient profile",
-            )
-        )
-
-    # 6) Broad questions should still return recent clinical memory. If lexical
-    # matching found nothing, provide a small amount of the latest report,
-    # latest transcript, and latest note.
-    if not candidates:
-        if reports:
-            report = reports[0]
-            chunks = _chunk_text(report.ocr_text or "", size=260, overlap=20)
-            if chunks:
-                candidates.append(_record(
-                    source_type="report",
-                    source_id=str(report.id),
+        # 5) Demographic context if asked
+        patient_question_terms = {"age", "gender", "sex", "name", "demographic", "demographics"}
+        if patient_question_terms.intersection(_expanded_query_terms(question)):
+            patient_text = f"Patient name: {patient.name}; age: {patient.age}; gender: {patient.gender or 'not recorded'}."
+            candidates.append(
+                _record(
+                    source_type="patient",
+                    source_id=str(patient.id),
                     patient_id=patient_id,
-                    text=chunks[0],
-                    score=0.42,
-                    source_name=report.original_filename or report.title or str(report.id),
-                    source_date=_date_string(report.report_date or report.created_at),
-                ))
-        if sessions:
-            latest_session_ids = {str(sessions[0].id)}
-            transcript = (
-                db.query(Transcript)
-                .filter(Transcript.session_id.in_([sessions[0].id]))
-                .order_by(Transcript.created_at.desc())
-                .first()
+                    text=patient_text,
+                    score=0.85,
+                    source_name="Patient profile",
+                )
             )
-            if transcript and transcript.raw_text:
-                chunks = _chunk_text(transcript.raw_text, size=260, overlap=20)
+
+        # 6) Broad fallback: If lexical matching found nothing, provide a balanced sample of:
+        # - latest report
+        # - latest consultation transcript
+        # - latest doctor note (preferring finalized doctor note)
+        if not candidates:
+            if reports:
+                report = reports[0]
+                chunks = _chunk_text(report.ocr_text or "", size=260, overlap=20)
+                if chunks:
+                    candidates.append(_record(
+                        source_type="report",
+                        source_id=str(report.id),
+                        patient_id=patient_id,
+                        text=chunks[0],
+                        score=0.42,
+                        source_name=report.original_filename or report.title or str(report.id),
+                        source_date=_date_string(report.report_date or report.created_at),
+                    ))
+            if transcripts:
+                transcript = transcripts[0]
+                session = session_by_id.get(str(transcript.session_id))
+                session_date = _date_string(session.session_date if session else transcript.created_at)
+                chunks = _chunk_text(transcript.raw_text or "", size=260, overlap=20)
                 if chunks:
                     candidates.append(_record(
                         source_type="transcript",
@@ -342,9 +604,26 @@ def retrieve_patient_context(
                         patient_id=patient_id,
                         text=chunks[0],
                         score=0.40,
-                        source_name=f"Consultation — {_date_string(sessions[0].session_date or sessions[0].created_at) or 'undated'}",
-                        source_date=_date_string(sessions[0].session_date or sessions[0].created_at),
+                        source_name=f"Consultation — {session_date or 'undated'}",
+                        source_date=session_date,
                     ))
+            if notes:
+                note = notes[0]
+                text = _note_text(note)
+                if text:
+                    session = session_by_id.get(str(note.session_id))
+                    session_date = _date_string(session.session_date if session else note.created_at)
+                    chunks = _chunk_text(text, size=260, overlap=20)
+                    if chunks:
+                        candidates.append(_record(
+                            source_type="note",
+                            source_id=str(note.id),
+                            patient_id=patient_id,
+                            text=chunks[0],
+                            score=0.41 if note.is_finalized else 0.38,
+                            source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
+                            source_date=session_date,
+                        ))
 
     # Deduplicate identical evidence, preferring the higher score.
     deduped: Dict[tuple[str, str], Dict[str, Any]] = {}
@@ -356,8 +635,7 @@ def retrieve_patient_context(
 
     results = list(deduped.values())
 
-    # Favor explicit lexical matches, then recency. This also prevents FAISS
-    # cache results with stale scores from crowding out direct DB evidence.
+    # Favor explicit match score, then recency.
     def sort_key(item: Dict[str, Any]):
         date_value = item.get("source_date") or ""
         return (item["similarity_score"], date_value)
