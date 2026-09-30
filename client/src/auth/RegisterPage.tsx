@@ -13,7 +13,7 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
+    .min(12, 'Password must be at least 12 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
@@ -53,8 +53,8 @@ export default function RegisterPage() {
         name: data.name,
       });
       navigate('/login', { replace: true });
-    } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Registration failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
     }
   }
 
@@ -217,8 +217,10 @@ export default function RegisterPage() {
                   className="w-full bg-white border border-[#c3c6d6] rounded-lg pl-10 pr-4 py-2.5 text-sm text-[#1a1c1a] placeholder:text-[#424843]/40 focus:outline-none focus:border-[#466551] focus:ring-2 focus:ring-[#466551]/10 transition-all"
                 />
               </div>
-              {errors.password && (
+              {errors.password ? (
                 <p className="text-[10px] font-bold text-rose-500">{errors.password.message}</p>
+              ) : (
+                <p className="text-[10px] text-[#747783]">Use 12+ characters with uppercase, lowercase, number, and special character.</p>
               )}
             </div>
 
