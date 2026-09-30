@@ -627,20 +627,20 @@ async def run_report_ocr(
         )
 
     # Avoid duplicate OCR jobs when the user clicks the button repeatedly.
-    if report.ocr_status == "pending":
+    if report.ocr_status == "processing":
         return ReportOcrResponse(
             id=str(report.id),
             patient_id=str(report.patient_id),
             file_path=report.file_path,
             mime_type=report.mime_type,
-            ocr_status="pending",
+            ocr_status="processing",
             ocr_error=None,
             text_preview="",
             extracted_char_count=0,
         )
 
     # Clear a previous failure before retrying.
-    report.ocr_status = "pending"
+    report.ocr_status = "processing"
     report.ocr_error = None
     report.ocr_text = None
     db.commit()
@@ -657,7 +657,7 @@ async def run_report_ocr(
         current_user.id,
         str(report.id),
         request,
-        {"status": "pending"},
+        {"status": "processing"},
     )
 
     return ReportOcrResponse(
@@ -665,7 +665,7 @@ async def run_report_ocr(
         patient_id=str(report.patient_id),
         file_path=report.file_path,
         mime_type=report.mime_type,
-        ocr_status="pending",
+        ocr_status="processing",
         ocr_error=None,
         text_preview="",
         extracted_char_count=0,
