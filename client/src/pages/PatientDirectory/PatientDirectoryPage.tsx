@@ -10,20 +10,6 @@ import { cn } from '@/lib/utils';
 import { Search, Plus, CheckCircle2, Eye, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDate } from '@/utils/formatters';
 
-function getDeterministicStatus(patient: Patient): 'STABLE' | 'WARNING' | 'CRITICAL' {
-  const name = patient.name.toLowerCase();
-  if (name.includes('radhika')) return 'CRITICAL';
-  if (name.includes('johny') || name.includes('jane')) return 'WARNING';
-
-  let hash = 0;
-  for (let i = 0; i < patient.name.length; i++) {
-    hash = patient.name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % 3;
-  const statuses: ('STABLE' | 'WARNING' | 'CRITICAL')[] = ['STABLE', 'WARNING', 'CRITICAL'];
-  return statuses[idx];
-}
-
 export default function PatientDirectoryPage() {
   const { data: patients, isLoading, isError } = usePatients();
   const { settings } = useSettings();
@@ -31,7 +17,7 @@ export default function PatientDirectoryPage() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'STABLE' | 'WARNING' | 'CRITICAL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'STABLE' | 'WARNING' | 'CRITICAL' | 'NO_DATA'>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -40,7 +26,7 @@ export default function PatientDirectoryPage() {
     if (!patients) return { total: 0, stable: 0, warning: 0, critical: 0 };
     let stable = 0, warning = 0, critical = 0;
     for (const p of patients) {
-      const s = getDeterministicStatus(p);
+      const s = p.clinical_status ?? 'NO_DATA';
       if (s === 'STABLE') stable++;
       if (s === 'WARNING') warning++;
       if (s === 'CRITICAL') critical++;
@@ -52,7 +38,7 @@ export default function PatientDirectoryPage() {
     if (!patients) return [];
     return patients.filter((patient) => {
       const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const patientStatus = getDeterministicStatus(patient);
+      const patientStatus = patient.clinical_status ?? 'NO_DATA';
       const matchesStatus = statusFilter === 'ALL' || patientStatus === statusFilter;
       return matchesSearch && matchesStatus;
     }).sort((a, b) => a.name.localeCompare(b.name));
@@ -154,8 +140,8 @@ export default function PatientDirectoryPage() {
       <div className="bg-white border border-[#E2E8E4] rounded-2xl overflow-hidden shadow-sm mt-2">
         {/* Tabs */}
         <div className="flex items-center gap-6 px-6 border-b border-[#E2E8E4] bg-[#faf9f6]">
-          {(['ALL', 'STABLE', 'WARNING', 'CRITICAL'] as const).map((status) => {
-            const label = status === 'ALL' ? 'All Patients' : status === 'WARNING' ? 'Monitor' : status === 'CRITICAL' ? 'Attention Required' : 'Stable';
+          {(['ALL', 'STABLE', 'WARNING', 'CRITICAL', 'NO_DATA'] as const).map((status) => {
+            const label = status === 'ALL' ? 'All Patients' : status === 'WARNING' ? 'Monitor' : status === 'CRITICAL' ? 'Attention Required' : status === 'NO_DATA' ? 'No Data' : 'Stable';
             const isActive = statusFilter === status;
             return (
               <button
@@ -212,7 +198,7 @@ export default function PatientDirectoryPage() {
                 </tr>
               ) : (
                 paginatedPatients.map((patient) => {
-                  const status = getDeterministicStatus(patient);
+                  const status = patient.clinical_status ?? 'NO_DATA';
                   return (
                     <tr key={patient.id} className="h-12 hover:bg-[#faf9f6] transition-colors">
                       <td className="px-6">
@@ -235,7 +221,7 @@ export default function PatientDirectoryPage() {
                         <StatusBadge status={status} />
                       </td>
                       <td className="px-6 text-[#424843]">
-                        0
+                        {patient.report_count ?? 0}
                       </td>
                       <td className="px-6">
                         <Link 
