@@ -7,5 +7,6 @@ export function useReport(reportId: string | undefined) {
     queryKey: QUERY_KEYS.report(reportId || ''),
     queryFn: () => fetchReportDetail(reportId || ''),
     enabled: !!reportId,
+    refetchInterval: (query) => query.state.data?.ocr_status === 'processing' ? 2000 : false,
   });
 }
