@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 import json
+import re
+from datetime import datetime
 
 from report_vector_store import search_similar_chunks
 from llm_service import generate_answer
@@ -18,6 +20,94 @@ class AskRequest(BaseModel):
     patient_id: str
     question: str
     top_k: int = 5
+
+
+def _fallback_report_context(db, patient_id: str, question: str, top_k: int):
+    """Retrieve context directly from ready OCR reports when FAISS has no usable hits.
+
+    Railway/container restarts can reset the local FAISS files. This DB-backed
+    fallback keeps Ask functional without re-running embeddings synchronously.
+    It is strictly scoped to the authenticated patient's reports.
+    """
+    from models import Report
+
+    reports = (
+        db.query(Report)
+        .filter(
+            Report.patient_id == patient_id,
+            Report.ocr_status == "ready",
+            Report.ocr_text.isnot(None),
+        )
+        .order_by(Report.report_date.desc().nullslast(), Report.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    if not reports:
+        return []
+
+    q = question.lower()
+    # Include clinical synonyms so "hemoglobin", "Hb", and "Hgb" retrieve the
+    # same OCR text even when OCR preserved a different abbreviation.
+    synonym_groups = [
+        ("hemoglobin", ("hemoglobin", "haemoglobin", "hgb", "hb")),
+        ("glucose", ("glucose", "blood sugar", "sugar")),
+        ("platelet", ("platelet", "platelets", "plt")),
+        ("wbc", ("wbc", "white blood", "white blood cell")),
+        ("rbc", ("rbc", "red blood", "red blood cell")),
+        ("creatinine", ("creatinine", "creat")),
+    ]
+    terms = set(re.findall(r"[a-z0-9]+", q))
+    expanded_terms = set(terms)
+    for _, aliases in synonym_groups:
+        if any(alias in q for alias in aliases):
+            expanded_terms.update(re.findall(r"[a-z0-9]+", " ".join(aliases)))
+
+    candidates = []
+    for report in reports:
+        text = (report.ocr_text or "").strip()
+        if not text:
+            continue
+
+        # Keep chunks small enough for the LLM context while preserving nearby
+        # lab values and labels. Prefer chunks containing query terms.
+        words = text.split()
+        window = 180
+        step = 140
+        for start in range(0, len(words), step):
+            chunk = " ".join(words[start:start + window]).strip()
+            if len(chunk) < 20:
+                continue
+            lower = chunk.lower()
+            term_hits = sum(1 for term in expanded_terms if len(term) > 1 and term in lower)
+            if term_hits:
+                candidates.append((term_hits, report, chunk))
+            if start + window >= len(words):
+                break
+
+    # If lexical matching finds nothing, use the latest report as context for
+    # broad questions such as "summarize the latest report".
+    if not candidates:
+        latest = reports[0]
+        text = (latest.ocr_text or "").strip()
+        if text:
+            words = text.split()
+            candidates = [(0, latest, " ".join(words[:360]))]
+
+    candidates.sort(key=lambda item: (item[0], item[1].report_date or datetime.min.date()), reverse=True)
+
+    results = []
+    for idx, (_, report, chunk) in enumerate(candidates[:top_k]):
+        results.append({
+            "report_id": str(report.id),
+            "patient_id": str(report.patient_id),
+            "chunk_index": idx,
+            "chunk_text": chunk,
+            "similarity_score": 0.5,
+            "report_source": report.original_filename or report.title or str(report.id),
+            "owner_id": None,
+        })
+    return results
 
 
 @router.post("/")
@@ -52,16 +142,24 @@ def ask_question(
         patient_id=str(request.patient_id),
     )
 
-    # STEP 2 — no context found
+    # STEP 2 — resilient DB fallback.
+    # FAISS is a local on-disk cache and can be empty after a Railway restart or
+    # deployment. Do not make the user re-index reports just to ask a question.
     if not results:
-
-        return {
-            "question": request.question,
-            "answer": "No relevant medical context found.",
-            "chunks_used": [],
-        }
+        results = _fallback_report_context(
+            db=db,
+            patient_id=str(request.patient_id),
+            question=request.question,
+            top_k=request.top_k,
+        )
 
     # STEP 3 — build retrieval context
+    if not results:
+        return {
+            "question": request.question,
+            "answer": "No relevant medical context found in this patient's ready reports.",
+            "chunks_used": [],
+        }
     context = "\n\n".join(
         chunk.get("chunk_text", "")
         for chunk in results
