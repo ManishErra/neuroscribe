@@ -226,6 +226,11 @@ export default function ReportsTab() {
                             <CheckCircle2 className="h-2.5 w-2.5" />
                             Ready
                           </Badge>
+                        ) : report.ocr_status === 'processing' ? (
+                          <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[9px] font-bold border-blue-200 bg-blue-50 text-blue-700 select-none flex items-center gap-1">
+                            <Sparkles className="h-2.5 w-2.5 animate-pulse" />
+                            Processing OCR
+                          </Badge>
                         ) : report.ocr_status === 'pending' ? (
                           <Badge variant="outline" className="px-2 py-0.5 rounded-full text-[9px] font-bold border-amber-200 bg-amber-50 text-amber-700 select-none flex items-center gap-1">
                             <AlertTriangle className="h-2.5 w-2.5 animate-pulse" />
@@ -293,6 +298,11 @@ export default function ReportsTab() {
                         <Badge className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] rounded-full flex items-center gap-1 select-none">
                           <CheckCircle2 className="h-2.5 w-2.5" />
                           Ready
+                        </Badge>
+                      ) : selectedReport?.ocr_status === 'processing' ? (
+                        <Badge className="bg-blue-50 text-blue-700 border border-blue-200 text-[9px] rounded-full flex items-center gap-1 select-none">
+                          <Sparkles className="h-2.5 w-2.5 animate-pulse" />
+                          Processing OCR
                         </Badge>
                       ) : selectedReport?.ocr_status === 'pending' ? (
                         <Badge className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] rounded-full flex items-center gap-1 select-none">
@@ -416,7 +426,15 @@ export default function ReportsTab() {
                       </div>
 
                       <div className={cn('flex-1 overflow-y-auto rounded-xl border border-border bg-[#f8f9fa] p-4 relative select-text leading-relaxed transition-all duration-200', isCompact ? 'min-h-[200px] max-h-[340px]' : 'min-h-[300px] max-h-[460px]')}>
-                        {selectedReport?.ocr_status === 'pending' ? (
+                        {selectedReport?.ocr_status === 'processing' ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-[#747783] text-center p-6 select-none">
+                            <Sparkles className="h-8 w-8 text-[#003d9b] mb-3 animate-pulse" />
+                            <span className="text-xs text-[#191c1d] font-bold mb-1">OCR processing in background</span>
+                            <p className="text-[10px] text-[#747783] max-w-sm leading-relaxed">
+                              You can leave this screen open. The report status will update automatically when extraction finishes.
+                            </p>
+                          </div>
+                        ) : selectedReport?.ocr_status === 'pending' ? (
                           <div className="absolute inset-0 flex flex-col items-center justify-center text-xs text-[#747783] italic text-center p-6 select-none">
                             OCR text data has not been extracted yet. Click "Run Extraction" in the header to process.
                           </div>
@@ -514,19 +532,23 @@ export default function ReportsTab() {
                               ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
                               : selectedReport?.ocr_status === 'failed'
                               ? "border border-rose-200 bg-rose-50 text-rose-600"
+                              : selectedReport?.ocr_status === 'processing'
+                              ? "border border-blue-200 bg-blue-50 text-blue-600"
                               : "border border-amber-200 bg-amber-50 text-amber-600"
                           )}>
                             {selectedReport?.ocr_status === 'ready' ? (
                               <CheckCircle2 className="h-3 w-3 shrink-0" />
                             ) : selectedReport?.ocr_status === 'failed' ? (
                               <XCircle className="h-3 w-3 shrink-0" />
+                            ) : selectedReport?.ocr_status === 'processing' ? (
+                              <Sparkles className="h-3 w-3 shrink-0 animate-pulse" />
                             ) : (
                               <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
                             )}
                           </div>
                           <span className="text-xs font-bold text-[#191c1d]">2. Document OCR Parsing Pipeline</span>
                           <span className="text-[10px] text-[#747783] leading-relaxed">
-                            Tesseract OCR parses scanned PDF/Image pages into searchable text, preserving the extracted clinical values.
+                            Textract engine parses PDF/Image layers to clean text block arrays, capturing physiological values.
                           </span>
                         </div>
 
@@ -536,10 +558,14 @@ export default function ReportsTab() {
                             "absolute -left-[31px] top-0 h-4 w-4 rounded-full flex items-center justify-center",
                             selectedReport?.ocr_status === 'ready'
                               ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
+                              : selectedReport?.ocr_status === 'processing'
+                              ? "border border-blue-200 bg-blue-50 text-blue-600"
                               : "border border-border bg-[#f8f9fa] text-[#747783]"
                           )}>
                             {selectedReport?.ocr_status === 'ready' ? (
                               <CheckCircle2 className="h-3 w-3 shrink-0" />
+                            ) : selectedReport?.ocr_status === 'processing' ? (
+                              <Sparkles className="h-3 w-3 shrink-0 animate-pulse" />
                             ) : (
                               <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
                             )}
