@@ -35,6 +35,9 @@ def get_patient_sessions(
     result = []
 
     for s in sessions:
+        transcript = db.query(Transcript).filter(
+            Transcript.session_id == s.id
+        ).first()
 
         note = db.query(Note).filter(
             Note.session_id == s.id
@@ -113,10 +116,10 @@ def create_session(
         raise HTTPException(404, "Patient not found")
 
     session = SessionModel(
-    id=uuid.uuid4(),
-    patient_id=data.patient_id,
-    session_date=date.today()
-)
+        id=uuid.uuid4(),
+        patient_id=data.patient_id,
+        session_date=date.today()
+    )
 
     db.add(session)
     db.commit()
