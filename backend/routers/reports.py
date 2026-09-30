@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Depends,
     File,
     Form,
@@ -16,7 +17,7 @@ from fastapi import (
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session as DBSession
 
-from database import get_db
+from database import get_db, SessionLocal
 from models import Patient, Report, User
 from report_ocr_extract import extract_report_text
 from fastapi.concurrency import run_in_threadpool
@@ -497,58 +498,120 @@ def download_report_file(
 # =========================================
 
 
+def _process_report_ocr_background(report_id: str, user_id: str) -> None:
+    """Run OCR + vector indexing off the request path.
+
+    The API marks the report as pending and returns immediately. This worker
+    owns its DB session so the request-scoped SQLAlchemy session is never used
+    after the HTTP response lifecycle.
+    """
+    db = SessionLocal()
+    try:
+        report = db.query(Report).filter(Report.id == report_id).first()
+        if not report:
+            return
+
+        # Re-validate ownership inside the background worker.
+        patient = db.query(Patient).filter(
+            Patient.id == report.patient_id,
+            Patient.owner_id == user_id,
+        ).first()
+        if not patient:
+            report.ocr_status = "failed"
+            report.ocr_error = "Report ownership validation failed."
+            report.ocr_text = None
+            db.commit()
+            return
+
+        try:
+            mime_type = validate_stored_report_mime(report.mime_type)
+            disk_path = resolve_uploaded_report_disk_path(report.file_path)
+
+            if not os.path.isfile(disk_path):
+                raise FileNotFoundError("Uploaded file is missing on disk; cannot run OCR.")
+
+            extracted = extract_report_text(disk_path, mime_type)
+
+            if not extracted.strip():
+                raise ValueError("OCR completed but no readable text was found in the document.")
+
+            # Persist OCR immediately. Vector indexing is deliberately after this
+            # commit so a slow embedding model can never hide successful OCR.
+            report.ocr_text = extracted
+            report.ocr_status = "ready"
+            report.ocr_error = None
+            db.commit()
+            log_audit(
+                "ocr_execution",
+                user_id,
+                report_id,
+                None,
+                {"status": "success", "char_count": len(extracted)},
+            )
+
+            try:
+                add_report_embeddings(
+                    report_id=report_id,
+                    patient_id=str(report.patient_id),
+                    report_text=extracted,
+                    owner_id=user_id,
+                )
+            except Exception as exc:
+                # OCR remains successful even if optional vector indexing fails.
+                print(
+                    f"[WARN] Vector ingestion failed for report {report_id} "
+                    f"(OCR succeeded): {exc}"
+                )
+
+        except Exception as exc:
+            err = _truncate_ocr_error(str(exc) or repr(exc))
+            db.rollback()
+            report = db.query(Report).filter(Report.id == report_id).first()
+            if report:
+                report.ocr_status = "failed"
+                report.ocr_error = err
+                report.ocr_text = None
+                db.commit()
+            log_audit(
+                "ocr_execution",
+                user_id,
+                report_id,
+                None,
+                {"status": "failed", "error": err},
+            )
+    finally:
+        db.close()
+
+
 @router.post(
     "/{report_id}/ocr",
     response_model=ReportOcrResponse,
+    status_code=202,
 )
 async def run_report_ocr(
     report_id: str,
+    background_tasks: BackgroundTasks,
     request: Request = None,
     db: DBSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
-
-    # =====================================
-    # LOAD REPORT
-    # =====================================
-
     report = db.query(Report).filter(Report.id == report_id).first()
-
     if not report:
-        raise HTTPException(
-            status_code=404,
-            detail="Report not found",
-        )
+        raise HTTPException(status_code=404, detail="Report not found")
 
-    # Verify patient ownership
     patient = db.query(Patient).filter(
         Patient.id == report.patient_id,
-        Patient.owner_id == current_user.id
+        Patient.owner_id == current_user.id,
     ).first()
-
     if not patient:
-        raise HTTPException(
-            status_code=404,
-            detail="Report not found",
-        )
+        raise HTTPException(status_code=404, detail="Report not found")
 
-    # =====================================
-    # VALIDATE MIME (stored on row)
-    # =====================================
-
-    mime_type = validate_stored_report_mime(report.mime_type)
-
-    # =====================================
-    # RESOLVE PATH + FILE EXISTS
-    # =====================================
-
+    validate_stored_report_mime(report.mime_type)
     disk_path = resolve_uploaded_report_disk_path(report.file_path)
 
     if not os.path.isfile(disk_path):
         report.ocr_status = "failed"
-        report.ocr_error = _truncate_ocr_error(
-            "Uploaded file is missing on disk; cannot run OCR."
-        )
+        report.ocr_error = "Uploaded file is missing on disk; cannot run OCR."
         report.ocr_text = None
         db.commit()
         db.refresh(report)
@@ -563,65 +626,49 @@ async def run_report_ocr(
             extracted_char_count=0,
         )
 
-    # =====================================
-    # EXTRACT TEXT
-    # =====================================
-
-    try:
-        extracted = await run_in_threadpool(extract_report_text, disk_path, mime_type)
-    except Exception as exc:
-        err = _truncate_ocr_error(str(exc) or repr(exc))
-        report.ocr_status = "failed"
-        report.ocr_error = err
-        report.ocr_text = None
-        db.commit()
-        db.refresh(report)
-        log_audit("ocr_execution", current_user.id, str(report.id), request, {"status": "failed", "error": err})
+    # Avoid duplicate OCR jobs when the user clicks the button repeatedly.
+    if report.ocr_status == "pending":
         return ReportOcrResponse(
             id=str(report.id),
             patient_id=str(report.patient_id),
             file_path=report.file_path,
             mime_type=report.mime_type,
-            ocr_status=report.ocr_status,
-            ocr_error=report.ocr_error,
+            ocr_status="pending",
+            ocr_error=None,
             text_preview="",
             extracted_char_count=0,
         )
 
-    # =====================================
-    # PERSIST SUCCESS
-    # =====================================
-
-    report.ocr_text = extracted
-    report.ocr_status = "ready"
+    # Clear a previous failure before retrying.
+    report.ocr_status = "pending"
     report.ocr_error = None
+    report.ocr_text = None
     db.commit()
     db.refresh(report)
-    log_audit("ocr_execution", current_user.id, str(report.id), request, {"status": "success", "char_count": len(extracted)})
 
-    try:
-        add_report_embeddings(
-            report_id=str(report.id),
-            patient_id=str(report.patient_id),
-            report_text=extracted,
-            owner_id=str(current_user.id),
-        )
-    except Exception as exc:
-        print(
-            f"Vector ingestion failed for report {report.id} (OCR succeeded): {exc}"
-        )
+    background_tasks.add_task(
+        _process_report_ocr_background,
+        str(report.id),
+        str(current_user.id),
+    )
 
-    preview = _text_preview(extracted)
+    log_audit(
+        "ocr_queued",
+        current_user.id,
+        str(report.id),
+        request,
+        {"status": "pending"},
+    )
 
     return ReportOcrResponse(
         id=str(report.id),
         patient_id=str(report.patient_id),
         file_path=report.file_path,
         mime_type=report.mime_type,
-        ocr_status=report.ocr_status,
+        ocr_status="pending",
         ocr_error=None,
-        text_preview=preview,
-        extracted_char_count=len(extracted),
+        text_preview="",
+        extracted_char_count=0,
     )
 
 
