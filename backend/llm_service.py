@@ -224,16 +224,17 @@ def _call_groq_llm(context: str, question: str) -> str:
     prompt = f"""
 You are a clinical AI assistant.
 
-Answer ONLY using the provided report context.
+Answer ONLY using the provided clinical record context.
 
 RULES:
 - Do NOT invent information.
 - Do NOT use outside medical knowledge.
-- If answer is missing, say:
-  "The report does not contain this information."
+- If the answer is not supported by the provided context, say exactly:
+  "Not found in available records."
+- Do not assume the context is a laboratory report; it may be a report, consultation transcript, doctor note, AI note, or patient record.
 - Keep answers short and clinically precise.
 
-REPORT CONTEXT:
+CLINICAL RECORD CONTEXT:
 {context}
 
 QUESTION:
@@ -293,34 +294,12 @@ def generate_answer(
     if entity_answer:
         return entity_answer
 
-    # STEP 3 — hallucination prevention
-    structured_keywords = [
-        "hemoglobin",
-        "glucose",
-        "platelet",
-        "platelets",
-        "wbc",
-        "rbc",
-        "creatinine",
-        "bilirubin",
-        "sodium",
-        "potassium",
-    ]
-
-    question_lower = question.lower()
-
-    for keyword in structured_keywords:
-
-        if keyword in question_lower:
-
-            return (
-                "The report does not contain "
-                "this information."
-            )
-
-    # STEP 3.5 — generalized evidence validation guard
+    # STEP 3 — evidence validation.
+    # Deterministic extraction is preferred, but a failed extractor is NOT
+    # evidence that the information is absent. The retrieved context is passed
+    # to the LLM whenever it contains enough evidence to support an answer.
     if not _validate_evidence(context, question):
-        return "The report does not contain sufficient information to answer this question."
+        return "Not found in available records."
 
     # STEP 4 — Groq LLM fallback
     return _call_groq_llm(context, question)
