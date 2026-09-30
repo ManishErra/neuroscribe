@@ -26,6 +26,8 @@ def test_llm_uses_context_when_lab_extractor_misses(monkeypatch):
         return "The hemoglobin reading was 13.7 g/dL."
 
     monkeypatch.setattr("llm_service._call_groq_llm", fake_call)
+    monkeypatch.setattr("llm_service._try_structured_extraction", lambda *_args: None)
+    monkeypatch.setattr("llm_service.try_structured_entity_answer", lambda *_args: None)
 
     answer = generate_answer(context, "What was the latest hemoglobin reading?")
     assert answer == "The hemoglobin reading was 13.7 g/dL."
