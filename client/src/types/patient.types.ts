@@ -8,6 +8,7 @@ export interface Patient {
   gender: string;
   created_at: string;
   clinical_status?: 'NO_DATA' | 'STABLE' | 'WARNING' | 'CRITICAL';
+  report_count?: number;
 }
 
 export interface PatientOverview {
