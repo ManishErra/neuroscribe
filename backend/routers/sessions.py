@@ -44,7 +44,8 @@ def get_patient_sessions(
             "id": str(s.id),
             "session_date": str(s.session_date),
             "has_note": note is not None,
-            "note_finalized": note.is_finalized if note else False
+            "note_finalized": note.is_finalized if note else False,
+            "transcript_id": str(transcript.id) if transcript else None
         })
 
     return result
@@ -83,6 +84,7 @@ def get_session(
     return {
         "id": str(s.id),
         "session_date": str(s.session_date),
+        "transcript_id": str(transcript.id) if transcript else None,
         "transcript": transcript.raw_text if transcript else None,
         "note": json.loads(note.doctor_edited)
             if (note and note.doctor_edited)
