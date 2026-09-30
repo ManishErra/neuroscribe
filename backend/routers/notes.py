@@ -38,9 +38,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
-GROQ_MODEL = os.getenv("GROQ_MODEL", "").strip()
-if GROQ_MODEL in {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}:
-    GROQ_MODEL = "openai/gpt-oss-20b"
+GROQ_LLM_MODEL = os.getenv("GROQ_LLM_MODEL", "openai/gpt-oss-20b").strip()
+if GROQ_LLM_MODEL in {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}:
+    GROQ_LLM_MODEL = "openai/gpt-oss-20b"
 client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # =========================================
@@ -192,7 +192,7 @@ def generate_note(
                 }
             )
 
-        if not GROQ_MODEL:
+        if not GROQ_LLM_MODEL:
             raise HTTPException(
                 status_code=503,
                 detail={
@@ -203,7 +203,7 @@ def generate_note(
 
         response = client.chat.completions.create(
 
-            model=GROQ_MODEL,
+            model=GROQ_LLM_MODEL,
 
             messages=[
                 {
@@ -221,7 +221,7 @@ def generate_note(
             ],
 
             temperature=0.2,
-            max_tokens=1000
+            max_completion_tokens=1000
         )
 
     except HTTPException:
@@ -230,7 +230,7 @@ def generate_note(
         logger.exception(
             "Groq note generation failed for transcript_id=%s using model=%s",
             req.transcript_id,
-            GROQ_MODEL,
+            GROQ_LLM_MODEL,
         )
         raise HTTPException(
             status_code=502,
