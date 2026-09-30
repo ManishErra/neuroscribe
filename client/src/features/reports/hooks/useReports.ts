@@ -7,5 +7,6 @@ export function useReports(patientId: string | undefined) {
     queryKey: QUERY_KEYS.reports(patientId || ''),
     queryFn: () => fetchPatientReports(patientId || ''),
     enabled: !!patientId,
+    refetchInterval: (query) => query.state.data?.some((report) => report.ocr_status === 'processing') ? 2000 : false,
   });
 }
