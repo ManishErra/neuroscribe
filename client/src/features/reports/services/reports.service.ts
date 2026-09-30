@@ -11,7 +11,7 @@ export interface ReportSummary {
   mime_type: string | null;
   title: string | null;
   report_date: string | null;
-  ocr_status: 'pending' | 'ready' | 'failed';
+  ocr_status: 'pending' | 'processing' | 'ready' | 'failed';
   created_at: string | null;
 }
 
@@ -23,7 +23,7 @@ export interface ReportDetail {
   mime_type: string | null;
   title: string | null;
   report_date: string | null;
-  ocr_status: 'pending' | 'ready' | 'failed';
+  ocr_status: 'pending' | 'processing' | 'ready' | 'failed';
   ocr_text: string | null;
   ocr_error: string | null;
   created_at: string | null;
@@ -34,7 +34,7 @@ export interface ReportOcrResponse {
   patient_id: string;
   file_path: string;
   mime_type: string | null;
-  ocr_status: 'pending' | 'ready' | 'failed';
+  ocr_status: 'pending' | 'processing' | 'ready' | 'failed';
   ocr_error: string | null;
   text_preview: string;
   extracted_char_count: number;
