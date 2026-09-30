@@ -33,10 +33,10 @@ export default function AskTab() {
     e.preventDefault();
     if (!query.trim() || askMutation.isPending) return;
     
-    // Auto-inject context to ground the search slightly more to this patient 
-    // even if the vector DB currently searches all doctor's documents.
-    const contextualQuery = `Regarding patient ${patient?.name || 'this patient'}: ${query}`;
-    askMutation.mutate({ question: contextualQuery, patientId: patientId || '' });
+    // Patient grounding is enforced by the backend using patientId.
+    // Keep the clinical question clean so retrieval/evidence matching is not
+    // polluted by the patient's name.
+    askMutation.mutate({ question: query.trim(), patientId: patientId || '' });
   };
 
   const renderAnswer = () => {
@@ -232,7 +232,14 @@ export default function AskTab() {
                       <CardHeader className="p-3 border-b border-border bg-white flex flex-row items-center justify-between">
                         <div className="flex items-center gap-2">
                           <FileText className="h-3.5 w-3.5 text-[#003d9b]" />
-                          <span className="text-[10px] font-bold text-[#191c1d] uppercase tracking-wider">Source Document</span>
+                          <span className="text-[10px] font-bold text-[#191c1d] uppercase tracking-wider">
+                            {chunk.source_name || (
+                              chunk.source_type === 'transcript' ? 'Consultation' :
+                              chunk.source_type === 'note' ? 'Clinical Note' :
+                              chunk.source_type === 'patient' ? 'Patient Profile' :
+                              'Source Document'
+                            )}
+                          </span>
                         </div>
                         <Badge variant="outline" className="text-[9px] font-bold border-border text-[#747783] px-1.5 py-0">
                           Score: {(chunk.similarity_score * 100).toFixed(1)}%
