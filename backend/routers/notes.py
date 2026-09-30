@@ -27,16 +27,19 @@ import os
 import uuid
 import json
 import re
+import logging
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
-)
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "").strip()
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 # =========================================
 # REQUEST MODELS
@@ -178,9 +181,27 @@ def generate_note(
 
     try:
 
+        if client is None:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "GROQ_LLM_UNAVAILABLE",
+                    "message": "AI note generation is not configured."
+                }
+            )
+
+        if not GROQ_MODEL:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "GROQ_MODEL_UNCONFIGURED",
+                    "message": "AI note generation model is not configured."
+                }
+            )
+
         response = client.chat.completions.create(
 
-            model="llama-3.3-70b-versatile",
+            model=GROQ_MODEL,
 
             messages=[
                 {
@@ -201,11 +222,20 @@ def generate_note(
             max_tokens=1000
         )
 
-    except Exception as e:
-
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(
+            "Groq note generation failed for transcript_id=%s using model=%s",
+            req.transcript_id,
+            GROQ_MODEL,
+        )
         raise HTTPException(
-            status_code=500,
-            detail=f"LLM call failed: {str(e)}"
+            status_code=502,
+            detail={
+                "code": "GROQ_LLM_FAILED",
+                "message": "The AI note generation provider failed. Please retry."
+            }
         )
 
     # =========================================
