@@ -49,7 +49,7 @@ def _get_groq_client() -> Groq | None:
 # Alternatives: qwen/qwen3.6-27b, qwen/qwen3.8-27b, llama-3.1-8b-instant
 # See: https://console.groq.com/docs/models
 
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "").strip()
 
 
 def _try_structured_extraction(
