@@ -10,6 +10,9 @@ from __future__ import annotations
 import os
 from typing import List, Optional
 
+OCR_DPI = int(os.getenv('OCR_DPI', '160'))
+OCR_TESSERACT_TIMEOUT = float(os.getenv('OCR_TESSERACT_TIMEOUT', '45'))
+
 from report_text_cleaner import clean_ocr_text
 
 
@@ -33,7 +36,7 @@ def _extract_image(path: str) -> str:
     import pytesseract
 
     with Image.open(path) as img:
-        text = pytesseract.image_to_string(img)
+        text = pytesseract.image_to_string(img, timeout=OCR_TESSERACT_TIMEOUT)
     return (text or "").strip()
 
 
@@ -62,12 +65,34 @@ def _extract_pdf(path: str) -> str:
     import pytesseract
 
     poppler: Optional[str] = os.getenv("POPPLER_PATH") or None
-    kwargs = {"dpi": 200}
+    kwargs = {"dpi": OCR_DPI, "thread_count": 2}
     if poppler:
         kwargs["poppler_path"] = poppler
 
-    pages = convert_from_path(path, **kwargs)
+    # Render one page at a time so large/scanned PDFs use predictable memory.
     parts: List[str] = []
-    for page in pages:
-        parts.append((pytesseract.image_to_string(page) or "").strip())
-    return "\n\n".join(p for p in parts if p).strip()
+    page_number = 1
+    while True:
+        pages = convert_from_path(
+            path,
+            first_page=page_number,
+            last_page=page_number,
+            **kwargs,
+        )
+        if not pages:
+            break
+
+        page = pages[0]
+        try:
+            text = pytesseract.image_to_string(
+                page,
+                timeout=OCR_TESSERACT_TIMEOUT,
+            )
+            if text and text.strip():
+                parts.append(text.strip())
+        finally:
+            page.close()
+
+        page_number += 1
+
+    return "\n\n".join(parts).strip()
