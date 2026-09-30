@@ -20,7 +20,6 @@ from sqlalchemy.orm import Session as DBSession
 from database import get_db, SessionLocal
 from models import Patient, Report, User
 from report_ocr_extract import extract_report_text
-from fastapi.concurrency import run_in_threadpool
 from report_vector_store import add_report_embeddings, remove_vectors_for_report
 from auth_utils import get_current_user
 from audit_logger import log_audit
