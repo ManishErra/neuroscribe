@@ -548,7 +548,7 @@ export default function ReportsTab() {
                           </div>
                           <span className="text-xs font-bold text-[#191c1d]">2. Document OCR Parsing Pipeline</span>
                           <span className="text-[10px] text-[#747783] leading-relaxed">
-                            Textract engine parses PDF/Image layers to clean text block arrays, capturing physiological values.
+                            Tesseract OCR parses scanned PDF/Image pages into searchable text, preserving the extracted clinical values.
                           </span>
                         </div>
 
