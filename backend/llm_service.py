@@ -49,9 +49,9 @@ def _get_groq_client() -> Groq | None:
 # this with GROQ_MODEL. Older deprecated IDs are remapped for compatibility.
 # See: https://console.groq.com/docs/models
 
-GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip()
-if GROQ_MODEL in {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}:
-    GROQ_MODEL = "openai/gpt-oss-20b"
+GROQ_LLM_MODEL = os.getenv("GROQ_LLM_MODEL", "openai/gpt-oss-20b").strip()
+if GROQ_LLM_MODEL in {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}:
+    GROQ_LLM_MODEL = "openai/gpt-oss-20b"
 
 
 def _try_structured_extraction(
@@ -244,7 +244,7 @@ ANSWER:
 
     try:
         response = client.chat.completions.create(
-            model=GROQ_MODEL,
+            model=GROQ_LLM_MODEL,
             messages=[
                 {
                     "role": "user",
@@ -252,7 +252,7 @@ ANSWER:
                 }
             ],
             temperature=0.1,
-            max_tokens=200,
+            max_completion_tokens=200,
         )
         return response.choices[0].message.content or "No response from LLM."
     except Exception as exc:
