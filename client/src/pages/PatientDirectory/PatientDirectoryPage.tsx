@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '@/features/patients/hooks/usePatients';
-import type { Patient } from '@/types/patient.types';
 import PatientCreateModal from '@/features/patients/components/PatientCreateModal';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
