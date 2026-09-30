@@ -14,27 +14,8 @@ interface PatientCardProps {
   patient: Patient;
 }
 
-/**
- * Deterministically map clinical statuses to patients using client-side hashes.
- * This prevents the N parallel HTTP request bottleneck while maintaining consistency in visual lists.
- * E.g., Radhika Erra is whitelisted to "CRITICAL" to match her real backend state.
- */
-function getDeterministicStatus(patient: Patient): 'STABLE' | 'WARNING' | 'CRITICAL' {
-  const name = patient.name.toLowerCase();
-  if (name.includes('radhika')) return 'CRITICAL';
-  if (name.includes('johny') || name.includes('jane')) return 'WARNING';
-
-  let hash = 0;
-  for (let i = 0; i < patient.name.length; i++) {
-    hash = patient.name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % 3;
-  const statuses: ('STABLE' | 'WARNING' | 'CRITICAL')[] = ['STABLE', 'WARNING', 'CRITICAL'];
-  return statuses[idx];
-}
-
 export default function PatientCard({ patient }: PatientCardProps) {
-  const status = getDeterministicStatus(patient);
+  const status = patient.clinical_status ?? 'NO_DATA';
   const { settings } = useSettings();
   const isCompact = settings.density === 'compact';
 
