@@ -7,11 +7,12 @@ export interface Patient {
   age: number;
   gender: string;
   created_at: string;
+  clinical_status?: 'NO_DATA' | 'STABLE' | 'WARNING' | 'CRITICAL';
 }
 
 export interface PatientOverview {
   patient_id: string;
-  status: 'STABLE' | 'WARNING' | 'CRITICAL';
+  status: 'NO_DATA' | 'STABLE' | 'WARNING' | 'CRITICAL';
   clinical_flags: string[];
   latest_labs: Record<string, string>;  // e.g. { hemoglobin: "9.2 g/dL" }
   last_activity: {

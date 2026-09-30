@@ -10,6 +10,33 @@ from auth_utils import get_current_user
 
 router = APIRouter(tags=["Patient Insights"], dependencies=[Depends(get_current_user)])
 
+def get_clinical_status(patient_id: str, db: DBSession):
+    """Return a data-backed status; never fabricate status from patient metadata."""
+    reports = db.query(Report).filter(Report.patient_id == patient_id).all()
+    ready_reports = [r for r in reports if r.ocr_status == "ready" and r.ocr_text]
+    if not ready_reports:
+        return "NO_DATA"
+
+    sorted_ready = sorted(ready_reports, key=get_report_sorting_date)
+    latest_report = sorted_ready[-1]
+    timeline_data = build_timeline(reports)
+    comparison_data = generate_comparison(timeline_data)
+    summary_res = generate_clinical_summary_data(
+        patient_id=patient_id,
+        latest_report_text=latest_report.ocr_text,
+        latest_report_date=str(latest_report.report_date) if latest_report.report_date else None,
+        timeline_data=timeline_data,
+        comparison_data=comparison_data
+    )
+    flags = summary_res.get("clinical_flags", [])
+    abnormalities = summary_res.get("abnormalities", [])
+    worsening_present = any("Worsening" in flag for flag in flags)
+    if len(abnormalities) > 1 or worsening_present:
+        return "CRITICAL"
+    if len(abnormalities) > 0:
+        return "WARNING"
+    return "STABLE"
+
 @router.get("/patient-insights/{patient_id}")
 def get_patient_insights(patient_id: str, db: DBSession = Depends(get_db), current_user = Depends(get_current_user)):
     """
@@ -76,7 +103,7 @@ def get_patient_overview(patient_id: str, db: DBSession = Depends(get_db), curre
     if not ready_reports:
         return {
             "patient_id": patient_id,
-            "status": "STABLE",
+            "status": "NO_DATA",
             "clinical_flags": [],
             "latest_labs": {},
             "last_activity": {}

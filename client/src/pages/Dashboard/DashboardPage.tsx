@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { usePatients } from '@/features/patients/hooks/usePatients';
-import type { Patient } from '@/types/patient.types';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSettings } from '@/store/SettingsContext';
@@ -20,20 +19,6 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@/utils/formatters';
 
-function getDeterministicStatus(patient: Patient): 'STABLE' | 'WARNING' | 'CRITICAL' {
-  const name = patient.name.toLowerCase();
-  if (name.includes('radhika')) return 'CRITICAL';
-  if (name.includes('johny') || name.includes('jane')) return 'WARNING';
-
-  let hash = 0;
-  for (let i = 0; i < patient.name.length; i++) {
-    hash = patient.name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % 3;
-  const statuses: ('STABLE' | 'WARNING' | 'CRITICAL')[] = ['STABLE', 'WARNING', 'CRITICAL'];
-  return statuses[idx];
-}
-
 export default function DashboardPage() {
   const { data: patients, isLoading, isError } = usePatients();
   const { settings } = useSettings();
@@ -44,7 +29,7 @@ export default function DashboardPage() {
     if (!patients) return { total: 0, stable: 0, warning: 0, critical: 0 };
     let stable = 0, warning = 0, critical = 0;
     for (const p of patients) {
-      const s = getDeterministicStatus(p);
+      const s = p.clinical_status;
       if (s === 'STABLE') stable++;
       if (s === 'WARNING') warning++;
       if (s === 'CRITICAL') critical++;
@@ -155,7 +140,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 recentPatients.map((patient) => {
-                  const status = getDeterministicStatus(patient);
+                  const status = patient.clinical_status ?? 'NO_DATA';
                   return (
                     <div key={patient.id} className="px-6 py-3.5 flex items-center justify-between hover:bg-[#faf9f6] transition-all">
                       <div className="flex items-center gap-3">

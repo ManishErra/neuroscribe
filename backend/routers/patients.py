@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session as DBSession
 from database import get_db
 from models import Patient
 from auth_utils import get_current_user
+from patient_insights import get_clinical_status
 from audit_logger import log_audit
 
 import uuid
@@ -29,7 +30,8 @@ def get_all_patients(db: DBSession = Depends(get_db), current_user = Depends(get
             "name": p.name,
             "age": p.age,
             "gender": p.gender,
-            "created_at": str(p.created_at)
+            "created_at": str(p.created_at),
+            "clinical_status": get_clinical_status(str(p.id), db)
         }
         for p in patients
     ]
