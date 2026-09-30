@@ -2,12 +2,16 @@
 // Architecture ref: frontend_architecture.md §14
 
 export interface SourceChunk {
-  report_id: string;
+  report_id?: string | null;
+  source_id?: string;
+  source_type?: 'report' | 'transcript' | 'note' | 'patient' | 'session' | string;
+  source_name?: string | null;
+  source_date?: string | null;
   chunk_index: number;
   chunk_text: string;
   similarity_score: number;
   chunk_length?: number;
-  report_source?: string;
+  report_source?: string | null;
   chunk_position?: number;
 }
 
