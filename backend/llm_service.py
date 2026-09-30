@@ -10,7 +10,7 @@ from clinical_extractors import (
     extract_hemoglobin,
 )
 from clinical_flags import classify_lab_result
-from query_intents import QueryIntent, detect_query_intent
+from query_intents import QueryIntent, detect_query_intent, has_medication_evidence
 
 logger = logging.getLogger(__name__)
 
@@ -177,15 +177,18 @@ def _validate_evidence(context: str, question: str, intent: QueryIntent | None =
     if intent == QueryIntent.MEDICATION_RECOMMENDATION:
         return True
 
+    # For medication queries, evidence MUST contain either documented medication
+    # information or an explicit statement that there are no active medications.
+    if intent in (QueryIntent.ACTIVE_MEDICATIONS, QueryIntent.MEDICATION_HISTORY):
+        return has_medication_evidence(context)
+
     # High-level overview, consultation, and statement queries are satisfied
-    # by the presence of patient-scoped records in the context.
+    # by the presence of authentic patient-scoped records in the context.
     if intent in (
         QueryIntent.PATIENT_OVERVIEW,
         QueryIntent.LAST_CONSULTATION,
         QueryIntent.PATIENT_STATEMENTS,
         QueryIntent.RECENT_HISTORY,
-        QueryIntent.ACTIVE_MEDICATIONS,
-        QueryIntent.MEDICATION_HISTORY,
     ):
         if "[Source:" in context or len(context.strip()) > 30:
             return True
@@ -270,8 +273,8 @@ RULES:
 - If asked for treatment recommendations, prescriptions, or what medications a patient should take, state that NeuroScribe only reports documented clinical information and does not recommend treatment or prescribe medications.
 - For medication queries:
   * If records document active/current medications, list only the documented medications.
-  * If records explicitly state that the patient takes no medication (or 'none'), state that no active medications are documented in the records.
-  * If no medication information is present in the records, say "Not found in available records." Never guess or recommend any medication.
+  * If records explicitly state that the patient takes no medication (e.g. 'none' or 'no current medications'), state that no active medications are documented in the records.
+  * If no medication information is present in the records, say "Not found in available records." Never guess, infer, or recommend any medication.
 - Keep answers short and clinically precise.
 
 CLINICAL RECORD CONTEXT:

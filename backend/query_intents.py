@@ -24,6 +24,24 @@ class QueryIntent(str, Enum):
     GENERAL_CLINICAL = "GENERAL_CLINICAL"
 
 
+MEDICATION_EVIDENCE_PATTERN = re.compile(
+    r"\b("
+    r"medications?|meds|medicines?|drugs?|prescribed|prescriptions?|"
+    r"dosage|dose|doses|daily|twice\s+daily|once\s+daily|oral|po|qd|bid|tid|prn|rx|"
+    r"tablets?|capsules?|injections?|inhalers?|insulin|antibiotics?|statins?|regimen|"
+    r"no\s+(?:active|current)?\s*medications?|not\s+taking\s+(?:any\s+)?medications?|"
+    r"not\s+on\s+(?:any\s+)?medications?|denies\s+medications?|medications?:\s*(?:none|no)|"
+    r"none\s+documented|no\s+meds"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def has_medication_evidence(text: str) -> bool:
+    """Check whether text contains documented medication terms or explicit no-medication statements."""
+    return bool(MEDICATION_EVIDENCE_PATTERN.search(text or ""))
+
+
 def normalize_question(question: str) -> str:
     """Normalize question text for rule-based intent matching."""
     text = (question or "").strip().lower()

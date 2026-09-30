@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 
 from models import Note, Patient, Report, Session as SessionModel, Transcript
 from report_vector_store import search_similar_chunks
-from query_intents import QueryIntent, detect_query_intent
+from query_intents import QueryIntent, detect_query_intent, has_medication_evidence
 
 
 STOP_WORDS = {
@@ -38,7 +38,14 @@ QUERY_ALIASES = {
     "wbc": {"wbc", "white blood", "white blood cell", "white blood cells"},
     "rbc": {"rbc", "red blood", "red blood cell", "red blood cells"},
     "creatinine": {"creatinine", "creat"},
-    "medication": {"medication", "medications", "meds", "medicine", "drug", "drugs", "prescription", "prescribed", "dose"},
+    "medication": {
+        "medication", "medications", "meds", "medicine", "medicines", "drug", "drugs",
+        "prescription", "prescriptions", "prescribed", "dosage", "dose", "mg", "mcg",
+        "tablet", "tablets", "capsule", "capsules", "daily", "oral", "po", "qd", "bid",
+        "tid", "prn", "rx", "insulin", "statin", "inhaler", "therapy",
+        "no medication", "no medications", "no active medication", "no current medication",
+        "not taking any medication", "not on any medication", "denies medication", "none"
+    },
     "sleep": {"sleep", "sleeping", "insomnia"},
     "mood": {"mood", "feeling", "feelings", "depressed", "anxious", "anxiety"},
     "symptoms": {"symptom", "symptoms", "complaint", "complaints"},
@@ -298,8 +305,8 @@ def retrieve_patient_context(
                         ))
 
     elif intent in (QueryIntent.ACTIVE_MEDICATIONS, QueryIntent.MEDICATION_HISTORY):
-        # Prioritize: 1. Finalized doctor notes, 2. Transcripts, 3. Medication reports
-        med_terms = QUERY_ALIASES["medication"]
+        # Dedicated medication retrieval: actual medication evidence gets high priority (0.85-0.95),
+        # while non-medication text is severely down-weighted (0.15-0.25).
         for note in notes:
             text = _note_text(note)
             if not text:
@@ -308,8 +315,8 @@ def retrieve_patient_context(
             session_date = _date_string(session.session_date if session else note.created_at)
             chunks = _chunk_text(text)
             for c_idx, chunk in enumerate(chunks):
-                has_med = any(term in chunk.lower() for term in med_terms)
-                score = 0.95 if (has_med and note.is_finalized) else (0.90 if has_med else 0.75)
+                has_med = has_medication_evidence(chunk)
+                score = 0.95 if (has_med and note.is_finalized) else (0.90 if has_med else 0.25)
                 candidates.append(_record(
                     source_type="note",
                     source_id=str(note.id),
@@ -326,8 +333,8 @@ def retrieve_patient_context(
             session_date = _date_string(session.session_date if session else transcript.created_at)
             chunks = _chunk_text(transcript.raw_text or "")
             for c_idx, chunk in enumerate(chunks):
-                has_med = any(term in chunk.lower() for term in med_terms)
-                score = 0.88 if has_med else 0.70
+                has_med = has_medication_evidence(chunk)
+                score = 0.88 if has_med else 0.20
                 candidates.append(_record(
                     source_type="transcript",
                     source_id=str(transcript.id),
@@ -342,8 +349,8 @@ def retrieve_patient_context(
         for report in reports:
             chunks = _chunk_text(report.ocr_text or "")
             for c_idx, chunk in enumerate(chunks):
-                has_med = any(term in chunk.lower() for term in med_terms)
-                score = 0.85 if has_med else 0.65
+                has_med = has_medication_evidence(chunk)
+                score = 0.85 if has_med else 0.15
                 candidates.append(_record(
                     source_type="report",
                     source_id=str(report.id),
@@ -356,7 +363,7 @@ def retrieve_patient_context(
                 ))
 
     elif intent == QueryIntent.PATIENT_OVERVIEW:
-        # Combine: 1. Patient profile, 2. Latest doctor note, 3. Latest transcript, 4. Recent reports
+        # Balanced composition across structured patient profile, doctor note, transcript, and reports
         patient_text = f"Patient name: {patient.name}; age: {patient.age}; gender: {patient.gender or 'not recorded'}."
         candidates.append(_record(
             source_type="patient",
@@ -368,19 +375,19 @@ def retrieve_patient_context(
         ))
 
         if notes:
-            for note in notes[:2]:
+            for note in notes[:1]:
                 text = _note_text(note)
                 if text:
                     session = session_by_id.get(str(note.session_id))
                     session_date = _date_string(session.session_date if session else note.created_at)
                     chunks = _chunk_text(text, size=240, overlap=30)
-                    for c_idx, chunk in enumerate(chunks):
+                    for c_idx, chunk in enumerate(chunks[:2]):
                         candidates.append(_record(
                             source_type="note",
                             source_id=str(note.id),
                             patient_id=patient_id,
                             text=chunk,
-                            score=0.92 if note.is_finalized else 0.85,
+                            score=0.92 - (c_idx * 0.01),
                             source_name=f"{'Doctor note' if note.is_finalized else 'AI note'} — {session_date or 'undated'}",
                             source_date=session_date,
                             chunk_index=c_idx,
@@ -391,31 +398,31 @@ def retrieve_patient_context(
                 session = session_by_id.get(str(transcript.session_id))
                 session_date = _date_string(session.session_date if session else transcript.created_at)
                 chunks = _chunk_text(transcript.raw_text or "", size=240, overlap=30)
-                for c_idx, chunk in enumerate(chunks):
+                for c_idx, chunk in enumerate(chunks[:2]):
                     candidates.append(_record(
                         source_type="transcript",
                         source_id=str(transcript.id),
                         patient_id=patient_id,
                         text=chunk,
-                        score=0.88,
+                        score=0.88 - (c_idx * 0.01),
                         source_name=f"Consultation — {session_date or 'undated'}",
                         source_date=session_date,
                         chunk_index=c_idx,
                     ))
 
         if reports:
-            for report in reports[:2]:
+            for r_idx, report in enumerate(reports[:2]):
                 chunks = _chunk_text(report.ocr_text or "", size=240, overlap=20)
-                for c_idx, chunk in enumerate(chunks):
+                if chunks:
                     candidates.append(_record(
                         source_type="report",
                         source_id=str(report.id),
                         patient_id=patient_id,
-                        text=chunk,
-                        score=0.82,
+                        text=chunks[0],
+                        score=0.82 - (r_idx * 0.01),
                         source_name=report.original_filename or report.title or str(report.id),
                         source_date=_date_string(report.report_date or report.created_at),
-                        chunk_index=c_idx,
+                        chunk_index=0,
                     ))
 
     elif intent == QueryIntent.RECENT_HISTORY:
@@ -425,7 +432,7 @@ def retrieve_patient_context(
                 session = session_by_id.get(str(transcript.session_id))
                 session_date = _date_string(session.session_date if session else transcript.created_at)
                 chunks = _chunk_text(transcript.raw_text or "", size=240, overlap=30)
-                for c_idx, chunk in enumerate(chunks):
+                for c_idx, chunk in enumerate(chunks[:2]):
                     candidates.append(_record(
                         source_type="transcript",
                         source_id=str(transcript.id),
@@ -444,7 +451,7 @@ def retrieve_patient_context(
                     session = session_by_id.get(str(note.session_id))
                     session_date = _date_string(session.session_date if session else note.created_at)
                     chunks = _chunk_text(text, size=240, overlap=30)
-                    for c_idx, chunk in enumerate(chunks):
+                    for c_idx, chunk in enumerate(chunks[:2]):
                         candidates.append(_record(
                             source_type="note",
                             source_id=str(note.id),
@@ -459,16 +466,16 @@ def retrieve_patient_context(
         if reports:
             for report in reports[:2]:
                 chunks = _chunk_text(report.ocr_text or "", size=240, overlap=20)
-                for c_idx, chunk in enumerate(chunks):
+                if chunks:
                     candidates.append(_record(
                         source_type="report",
                         source_id=str(report.id),
                         patient_id=patient_id,
-                        text=chunk,
+                        text=chunks[0],
                         score=0.85,
                         source_name=report.original_filename or report.title or str(report.id),
                         source_date=_date_string(report.report_date or report.created_at),
-                        chunk_index=c_idx,
+                        chunk_index=0,
                     ))
 
     else:
