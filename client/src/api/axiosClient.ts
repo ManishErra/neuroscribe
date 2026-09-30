@@ -19,15 +19,59 @@ client.interceptors.request.use((config) => {
 });
 
 // ── Response interceptor: normalize errors, handle 401 ───────────────────────
+
+function getErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const detail = err.response?.data?.detail;
+
+    if (typeof detail === 'string' && detail.trim()) {
+      return detail;
+    }
+
+    if (Array.isArray(detail)) {
+      const messages = detail
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object' && 'msg' in item) {
+            const msg = (item as { msg?: unknown }).msg;
+            return typeof msg === 'string' ? msg : null;
+          }
+          return null;
+        })
+        .filter((message): message is string => Boolean(message));
+
+      if (messages.length) return messages.join('. ');
+    }
+
+    if (detail && typeof detail === 'object' && 'message' in detail) {
+      const message = (detail as { message?: unknown }).message;
+      if (typeof message === 'string' && message.trim()) return message;
+    }
+
+    if (typeof err.response?.data?.message === 'string' && err.response.data.message.trim()) {
+      return err.response.data.message;
+    }
+
+    if (err.message) return err.message;
+  }
+
+  if (err instanceof Error && err.message) return err.message;
+  return 'Request failed. Please try again.';
+}
+
 client.interceptors.response.use(
   (res) => res.data,
-  async (err) => {
-    if (err.response?.status === 401) {
+  (err: unknown) => {
+    const hasAccessToken = Boolean(localStorage.getItem('ns_access_token'));
+
+    // A failed login itself returns 401. Do not redirect an already logged-out
+    // user back to the same login page. Only expire an existing session.
+    if (axios.isAxiosError(err) && err.response?.status === 401 && hasAccessToken) {
       localStorage.removeItem('ns_access_token');
       window.location.href = '/login';
     }
-    const message = err.response?.data?.detail || err.message || 'Request failed';
-    return Promise.reject(new Error(message));
+
+    return Promise.reject(new Error(getErrorMessage(err)));
   }
 );
 
