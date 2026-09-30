@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session as DBSession
 
 from database import get_db
-from models import Patient
+from models import Patient, Report
 from auth_utils import get_current_user
 from patient_insights import get_clinical_status
 from audit_logger import log_audit
@@ -31,7 +31,8 @@ def get_all_patients(db: DBSession = Depends(get_db), current_user = Depends(get
             "age": p.age,
             "gender": p.gender,
             "created_at": str(p.created_at),
-            "clinical_status": get_clinical_status(str(p.id), db)
+            "clinical_status": get_clinical_status(str(p.id), db),
+            "report_count": db.query(Report).filter(Report.patient_id == p.id).count()
         }
         for p in patients
     ]
