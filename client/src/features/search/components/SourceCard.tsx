@@ -89,7 +89,7 @@ export default function SourceCard({ chunk, isCompact }: SourceCardProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-2.5 bg-muted/10 p-2.5 rounded-lg border border-border/30 text-[10px] font-mono text-muted-foreground select-text">
             <div className="min-w-0">
               <span className="block opacity-65 text-[9px] mb-0.5">Report ID</span>
-              <span className="text-[9px] text-foreground font-semibold truncate block" title={chunk.report_id}>
+              <span className="text-[9px] text-foreground font-semibold truncate block" title={chunk.report_id ?? undefined}>
                 {chunk.report_id}
               </span>
             </div>
