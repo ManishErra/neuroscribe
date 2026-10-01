@@ -352,6 +352,101 @@ def test_test_m_cross_patient_isolation():
         assert "morning headaches" not in r["chunk_text"]
 
 
+def _create_mock_groq_response(content: str | None, finish_reason: str = "stop", completion_tokens: int = 50, reasoning_tokens: int | None = None):
+    mock_choice = MagicMock()
+    mock_choice.finish_reason = finish_reason
+    mock_choice.message.content = content
+
+    mock_details = MagicMock()
+    mock_details.reasoning_tokens = reasoning_tokens
+
+    mock_usage = MagicMock()
+    mock_usage.completion_tokens = completion_tokens
+    mock_usage.completion_tokens_details = mock_details
+
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    mock_response.usage = mock_usage
+    return mock_response
+
+
+def test_test_n_llm_response_normal_content():
+    """Test A: Mock Groq client returns normal response content."""
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = _create_mock_groq_response(
+        content="Patient Eleanor Vance is a 32-year-old female presenting with morning headaches.",
+        finish_reason="stop",
+        completion_tokens=42,
+    )
+
+    context = "[Source: Patient profile]\nPatient name: Eleanor Vance; age: 32; gender: female."
+    question = "Tell me about the patient and give me details of the patient"
+
+    with patch("llm_service._get_groq_client", return_value=mock_client):
+        answer = generate_answer(context, question)
+        assert answer == "Patient Eleanor Vance is a 32-year-old female presenting with morning headaches."
+        assert mock_client.chat.completions.create.called
+
+
+def test_test_o_llm_response_empty_content_length_truncation():
+    """Test B: Mock Groq client returns empty content + finish_reason='length'."""
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = _create_mock_groq_response(
+        content="",
+        finish_reason="length",
+        completion_tokens=250,
+        reasoning_tokens=250,
+    )
+
+    context = "[Source: Patient profile]\nPatient name: Eleanor Vance; age: 32; gender: female."
+    question = "Tell me about the patient and give me details of the patient"
+
+    with patch("llm_service._get_groq_client", return_value=mock_client):
+        try:
+            generate_answer(context, question)
+            assert False, "Expected RuntimeError due to length truncation"
+        except RuntimeError as exc:
+            assert "truncated due to context/token length limit" in str(exc)
+            assert "finish_reason='length'" in str(exc)
+            assert "Not found in available records." not in str(exc)
+
+
+def test_test_p_llm_response_empty_content_other_finish_reason():
+    """Test C: Mock Groq client returns empty content + finish_reason='stop'."""
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = _create_mock_groq_response(
+        content="",
+        finish_reason="stop",
+        completion_tokens=10,
+    )
+
+    context = "[Source: Patient profile]\nPatient name: Eleanor Vance; age: 32; gender: female."
+    question = "Tell me about the patient and give me details of the patient"
+
+    with patch("llm_service._get_groq_client", return_value=mock_client):
+        try:
+            generate_answer(context, question)
+            assert False, "Expected RuntimeError due to empty response"
+        except RuntimeError as exc:
+            assert "empty response received from model" in str(exc)
+            assert "finish_reason='stop'" in str(exc)
+            assert "Not found in available records." not in str(exc)
+
+
+def test_test_q_llm_response_not_found_missing_evidence():
+    """Test D: Evidence validation fails and returns 'Not found in available records.' without LLM call."""
+    mock_client = MagicMock()
+
+    context = "[Source: Lab Report]\nHemoglobin: 14.2 g/dL. Platelets: 250000 /uL."
+    question = "What were the results of the brain MRI scan?"
+
+    with patch("llm_service._get_groq_client", return_value=mock_client):
+        answer = generate_answer(context, question)
+        assert answer == "Not found in available records."
+        # Verify LLM was NOT called when evidence is missing
+        assert not mock_client.chat.completions.create.called
+
+
 if __name__ == "__main__":
     print("Running Ask NeuroScribe Query Intent & Retrieval Test Suite...")
     test_intent_detection()
@@ -382,4 +477,13 @@ if __name__ == "__main__":
     print("Test 13 (Unrelated question not found): PASSED")
     test_test_m_cross_patient_isolation()
     print("Test 14 (Cross-patient isolation): PASSED")
-    print("\nALL CLINICAL MEMORY INTENT TESTS PASSED SUCCESSFULLY (14/14)!")
+    test_test_n_llm_response_normal_content()
+    print("Test 15 (LLM normal response content): PASSED")
+    test_test_o_llm_response_empty_content_length_truncation()
+    print("Test 16 (LLM empty content length truncation): PASSED")
+    test_test_p_llm_response_empty_content_other_finish_reason()
+    print("Test 17 (LLM empty content other finish reason): PASSED")
+    test_test_q_llm_response_not_found_missing_evidence()
+    print("Test 18 (Evidence missing returns Not found): PASSED")
+    print("\nALL CLINICAL MEMORY INTENT & LLM ERROR-HANDLING TESTS PASSED SUCCESSFULLY (18/18)!")
+
