@@ -249,7 +249,11 @@ def _validate_evidence(context: str, question: str, intent: QueryIntent | None =
     return True
 
 
-def _call_groq_llm(context: str, question: str) -> str:
+def _call_groq_llm(
+    context: str,
+    question: str,
+    intent: QueryIntent | None = None,
+) -> str:
     """
     Call Groq API with the clinical QA prompt.
     Preserves strict clinical boundaries and hallucination prevention.
@@ -286,6 +290,11 @@ QUESTION:
 ANSWER:
 """
 
+    if intent is None:
+        intent = detect_query_intent(question)
+
+    intent_str = intent.value if hasattr(intent, "value") else str(intent)
+
     try:
         response = client.chat.completions.create(
             model=GROQ_LLM_MODEL,
@@ -298,9 +307,54 @@ ANSWER:
             temperature=0.1,
             max_completion_tokens=250,
         )
-        return response.choices[0].message.content or "No response from LLM."
+
+        choice = response.choices[0]
+        finish_reason = getattr(choice, "finish_reason", None)
+        raw_content = choice.message.content
+        content = raw_content.strip() if raw_content else ""
+
+        usage = getattr(response, "usage", None)
+        completion_tokens = getattr(usage, "completion_tokens", None)
+        details = getattr(usage, "completion_tokens_details", None)
+        reasoning_tokens = getattr(details, "reasoning_tokens", None)
+
+        is_empty = not content
+
+        logger.info(
+            "Groq LLM response received | model=%s intent=%s finish_reason=%s "
+            "prompt_chars=%d context_chars=%d completion_tokens=%s reasoning_tokens=%s is_content_empty=%s",
+            GROQ_LLM_MODEL,
+            intent_str,
+            finish_reason,
+            len(prompt),
+            len(context),
+            completion_tokens,
+            reasoning_tokens,
+            is_empty,
+        )
+
+        if is_empty:
+            if finish_reason == "length":
+                raise RuntimeError(
+                    f"LLM generation failed: response truncated due to context/token length limit "
+                    f"(finish_reason='length', completion_tokens={completion_tokens})."
+                )
+            raise RuntimeError(
+                f"LLM generation failed: empty response received from model (finish_reason='{finish_reason}')."
+            )
+
+        return content
+
+    except RuntimeError:
+        raise
     except Exception as exc:
-        logger.error("Groq LLM call failed: %s", exc)
+        logger.error(
+            "Groq LLM call failed | model=%s intent=%s error_type=%s: %s",
+            GROQ_LLM_MODEL,
+            intent_str,
+            type(exc).__name__,
+            exc,
+        )
         raise RuntimeError(f"LLM generation failed: {exc}") from exc
 
 
@@ -347,4 +401,5 @@ def generate_answer(
         return "Not found in available records."
 
     # STEP 4 — Groq LLM fallback
-    return _call_groq_llm(context, question)
+    return _call_groq_llm(context, question, intent=intent)
+

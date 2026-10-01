@@ -1,11 +1,14 @@
+import logging
+import json
 from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import BaseModel
-import json
 
 from clinical_memory import retrieve_patient_context
 from llm_service import generate_answer
 from auth_utils import get_current_user
 from rate_limiter import rag_limiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/ask",
@@ -90,12 +93,11 @@ def ask_question(
             question=expanded_query,
         )
     except Exception as exc:
-        return {
-            "question": request.question,
-            "answer": "The clinical answer service is temporarily unavailable. Please retry.",
-            "chunks_used": results,
-            "error": str(exc),
-        }
+        logger.error("Clinical QA answer generation failed: %s", exc)
+        raise HTTPException(
+            status_code=503,
+            detail="The clinical answer service is temporarily unavailable. Please retry.",
+        )
 
     try:
         if "\n\n" in answer.strip():
