@@ -53,6 +53,18 @@ if GROQ_LLM_MODEL in {"llama-3.3-70b-versatile", "llama-3.1-8b-instant"}:
     GROQ_LLM_MODEL = "openai/gpt-oss-20b"
 
 
+def _get_max_completion_tokens() -> int:
+    val = os.getenv("GROQ_MAX_COMPLETION_TOKENS", "1024").strip()
+    try:
+        parsed = int(val)
+        return parsed if parsed > 0 else 1024
+    except (ValueError, TypeError):
+        return 1024
+
+
+GROQ_MAX_COMPLETION_TOKENS = _get_max_completion_tokens()
+
+
 def _try_structured_extraction(
     context: str,
     question: str,
@@ -305,7 +317,7 @@ ANSWER:
                 }
             ],
             temperature=0.1,
-            max_completion_tokens=250,
+            max_completion_tokens=_get_max_completion_tokens(),
         )
 
         choice = response.choices[0]
