@@ -371,7 +371,7 @@ def _create_mock_groq_response(content: str | None, finish_reason: str = "stop",
 
 
 def test_test_n_llm_response_normal_content():
-    """Test A: Mock Groq client returns normal response content."""
+    """Test A: Mock Groq client returns normal response content with 1024 token budget."""
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = _create_mock_groq_response(
         content="Patient Eleanor Vance is a 32-year-old female presenting with morning headaches.",
@@ -382,10 +382,16 @@ def test_test_n_llm_response_normal_content():
     context = "[Source: Patient profile]\nPatient name: Eleanor Vance; age: 32; gender: female."
     question = "Tell me about the patient and give me details of the patient"
 
-    with patch("llm_service._get_groq_client", return_value=mock_client):
+    with patch("llm_service._get_groq_client", return_value=mock_client), \
+         patch.dict("os.environ", {}, clear=False):
+        # Remove any override to test default
+        import os
+        os.environ.pop("GROQ_MAX_COMPLETION_TOKENS", None)
         answer = generate_answer(context, question)
         assert answer == "Patient Eleanor Vance is a 32-year-old female presenting with morning headaches."
         assert mock_client.chat.completions.create.called
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["max_completion_tokens"] == 1024
 
 
 def test_test_o_llm_response_empty_content_length_truncation():
@@ -394,8 +400,8 @@ def test_test_o_llm_response_empty_content_length_truncation():
     mock_client.chat.completions.create.return_value = _create_mock_groq_response(
         content="",
         finish_reason="length",
-        completion_tokens=250,
-        reasoning_tokens=250,
+        completion_tokens=1024,
+        reasoning_tokens=1024,
     )
 
     context = "[Source: Patient profile]\nPatient name: Eleanor Vance; age: 32; gender: female."
@@ -467,7 +473,7 @@ def test_test_r_search_api_does_not_leak_runtime_error_details():
 
     with patch("database.get_db", return_value=iter([mock_db])), \
          patch("rate_limiter.rag_limiter.check"), \
-         patch("routers.search.generate_answer", side_effect=RuntimeError("LLM generation failed: response truncated due to context/token length limit (finish_reason='length', completion_tokens=250).")):
+         patch("routers.search.generate_answer", side_effect=RuntimeError("LLM generation failed: response truncated due to context/token length limit (finish_reason='length', completion_tokens=1024).")):
         try:
             ask_question(ask_req, mock_request, current_user=mock_user)
             assert False, "Expected HTTPException with status 503"
@@ -479,6 +485,26 @@ def test_test_r_search_api_does_not_leak_runtime_error_details():
             assert "completion_tokens" not in exc.detail
             assert "RuntimeError" not in exc.detail
             assert "truncated" not in exc.detail
+
+
+def test_test_s_groq_token_budget_env_configuration():
+    """Test E: Groq token budget respects GROQ_MAX_COMPLETION_TOKENS environment variable."""
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = _create_mock_groq_response(
+        content="Overview response under custom token budget.",
+        finish_reason="stop",
+        completion_tokens=60,
+    )
+
+    context = "[Source: Patient profile]\nPatient name: Eleanor Vance; age: 32; gender: female."
+    question = "Tell me about the patient and give me details of the patient"
+
+    with patch("llm_service._get_groq_client", return_value=mock_client), \
+         patch.dict("os.environ", {"GROQ_MAX_COMPLETION_TOKENS": "2048"}):
+        answer = generate_answer(context, question)
+        assert answer == "Overview response under custom token budget."
+        call_kwargs = mock_client.chat.completions.create.call_args[1]
+        assert call_kwargs["max_completion_tokens"] == 2048
 
 
 if __name__ == "__main__":
@@ -521,6 +547,9 @@ if __name__ == "__main__":
     print("Test 18 (Evidence missing returns Not found): PASSED")
     test_test_r_search_api_does_not_leak_runtime_error_details()
     print("Test 19 (Search API 503 error without leaking internal details): PASSED")
-    print("\nALL CLINICAL MEMORY INTENT & LLM ERROR-HANDLING TESTS PASSED SUCCESSFULLY (19/19)!")
+    test_test_s_groq_token_budget_env_configuration()
+    print("Test 20 (Groq token budget configurable via env): PASSED")
+    print("\nALL CLINICAL MEMORY INTENT & LLM ERROR-HANDLING TESTS PASSED SUCCESSFULLY (20/20)!")
+
 
 
