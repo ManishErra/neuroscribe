@@ -447,6 +447,40 @@ def test_test_q_llm_response_not_found_missing_evidence():
         assert not mock_client.chat.completions.create.called
 
 
+def test_test_r_search_api_does_not_leak_runtime_error_details():
+    """Test that search router catches LLM generation errors and raises HTTP 503 without leaking internal details."""
+    from fastapi import HTTPException
+    from routers.search import ask_question, AskRequest
+
+    mock_db, patient_a_id, _, _, _, owner_id = create_test_fixtures()
+    mock_user = MagicMock()
+    mock_user.id = owner_id
+
+    mock_request = MagicMock()
+    mock_request.headers = {}
+
+    ask_req = AskRequest(
+        patient_id=patient_a_id,
+        question="Tell me about the patient and give me details of the patient",
+        top_k=5,
+    )
+
+    with patch("database.get_db", return_value=iter([mock_db])), \
+         patch("rate_limiter.rag_limiter.check"), \
+         patch("routers.search.generate_answer", side_effect=RuntimeError("LLM generation failed: response truncated due to context/token length limit (finish_reason='length', completion_tokens=250).")):
+        try:
+            ask_question(ask_req, mock_request, current_user=mock_user)
+            assert False, "Expected HTTPException with status 503"
+        except HTTPException as exc:
+            assert exc.status_code == 503
+            assert exc.detail == "The clinical answer service is temporarily unavailable. Please retry."
+            # Confirm no internal tokens or stack info is in detail
+            assert "finish_reason" not in exc.detail
+            assert "completion_tokens" not in exc.detail
+            assert "RuntimeError" not in exc.detail
+            assert "truncated" not in exc.detail
+
+
 if __name__ == "__main__":
     print("Running Ask NeuroScribe Query Intent & Retrieval Test Suite...")
     test_intent_detection()
@@ -485,5 +519,8 @@ if __name__ == "__main__":
     print("Test 17 (LLM empty content other finish reason): PASSED")
     test_test_q_llm_response_not_found_missing_evidence()
     print("Test 18 (Evidence missing returns Not found): PASSED")
-    print("\nALL CLINICAL MEMORY INTENT & LLM ERROR-HANDLING TESTS PASSED SUCCESSFULLY (18/18)!")
+    test_test_r_search_api_does_not_leak_runtime_error_details()
+    print("Test 19 (Search API 503 error without leaking internal details): PASSED")
+    print("\nALL CLINICAL MEMORY INTENT & LLM ERROR-HANDLING TESTS PASSED SUCCESSFULLY (19/19)!")
+
 
