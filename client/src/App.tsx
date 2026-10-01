@@ -10,6 +10,7 @@ import LoginPage from '@/auth/LoginPage';
 import RegisterPage from '@/auth/RegisterPage';
 import PageShell from '@/components/layout/PageShell';
 import ErrorBoundary from '@/components/common/ErrorBoundary';
+import BrandSignature from '@/components/common/BrandSignature';
 import DashboardPage from '@/pages/Dashboard/DashboardPage';
 import PatientDirectoryPage from '@/pages/PatientDirectory/PatientDirectoryPage';
 import PatientProfilePage from '@/pages/PatientProfile/PatientProfilePage';
@@ -149,5 +150,10 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <BrandSignature />
+    </>
+  );
 }
