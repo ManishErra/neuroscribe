@@ -125,6 +125,14 @@ See SECURITY.md and docs/security/ for the security model and historical verific
 
 The current production baseline includes authenticated patient workflows, report OCR, clinical-memory retrieval, Ask NeuroScribe intent routing, patient isolation, and safe LLM error handling.
 
+## Copyright and ownership
+
+Copyright © 2026 Manish Erra. All rights reserved.
+
+NeuroScribe is an original project developed and maintained by Manish Erra. Unless otherwise stated, the original source code, documentation, user-interface/design work, project branding, and other original project materials in this repository are not licensed for reuse, redistribution, modification, or commercial use without permission from the copyright holder. Third-party libraries, frameworks, models, assets, and dependencies remain subject to their respective licenses and terms.
+
+See [COPYRIGHT.md](COPYRIGHT.md) for the full ownership notice.
+
 ## License
 
-No open-source license is currently declared. All rights are reserved unless a license is added to this repository.
+No open-source license is currently declared. Public visibility of this repository does not grant an open-source license.
